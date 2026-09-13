@@ -6,7 +6,7 @@
 
 import { CHATTINESS_HELP, CHATTINESS_LABEL, companionStore, useCompanionPrefs, type Chattiness } from "@/lib/companion/prefs";
 import { PACE_HELP, PACE_LABEL, prefsStore, usePrefs, type Pace } from "@/lib/prefs/pace";
-import { speechSupported } from "@/lib/audio/speech";
+import { useSpeechSupported } from "@/lib/audio/useSpeechSupported";
 
 const CHATTINESS: Chattiness[] = ["quiet", "normal", "chatty"];
 const PACES: Pace[] = ["fast", "normal", "step"];
@@ -14,6 +14,7 @@ const PACES: Pace[] = ["fast", "normal", "step"];
 export function CompanionSettings({ onClose }: { onClose: () => void }) {
   const { chattiness, voice } = useCompanionPrefs();
   const { pace } = usePrefs();
+  const canSpeak = useSpeechSupported();
 
   return (
     <div className="fixed inset-0 z-40 flex items-end" role="dialog" aria-label="Caissa settings">
@@ -33,7 +34,7 @@ export function CompanionSettings({ onClose }: { onClose: () => void }) {
           ))}
         </Group>
 
-        {speechSupported() && (
+        {canSpeak && (
           <label className="mt-4 flex min-h-[52px] items-center justify-between rounded-2xl border border-line px-4">
             <span className="text-[15px] font-semibold">Caissa speaks out loud</span>
             <input

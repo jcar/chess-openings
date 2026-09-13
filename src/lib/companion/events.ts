@@ -35,7 +35,10 @@ export type TrainEvent =
       fenAfter: string;
     }
   | { t: "bot_coach_refresh"; plyIndex: number; coach: CoachMessage }
-  | { t: "book_ended"; plyIndex: number }
+  /** `by` is who played the move that left the book, which is the difference
+   *  between "you did something wrong" and "they did something unusual". */
+  | { t: "book_ended"; plyIndex: number; by: "you" | "them"; san: string; bookMove?: string }
+  | { t: "book_resumed"; plyIndex: number }
   | { t: "checkpoint"; plyIndex: number; checkpoint: Checkpoint }
   | { t: "checkpoint_answered"; plyIndex: number; correct: boolean; explanation: string }
   | { t: "hint"; plyIndex: number; text: string; from?: string; to?: string }

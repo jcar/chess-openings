@@ -6,7 +6,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowLeftIcon } from "@/components/icons";
-import { speechSupported } from "@/lib/audio/speech";
+import { useSpeechSupported } from "@/lib/audio/useSpeechSupported";
 import { companionStore, useCompanionPrefs } from "@/lib/companion/prefs";
 import { CaissaAvatar, type CaissaStatus } from "./CaissaAvatar";
 import { CompanionSettings } from "./CompanionSettings";
@@ -26,7 +26,7 @@ export function CaissaHeader({
 }) {
   const { voice } = useCompanionPrefs();
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const canSpeak = speechSupported();
+  const canSpeak = useSpeechSupported();
 
   return (
     <>

@@ -15,3 +15,6 @@ tsconfig.tsbuildinfo
 *.log
 .DS_Store
 design/
+
+# Local-only: fetched rules file, deliberately not published.
+.clauderules

@@ -272,3 +272,18 @@ test("she remembers the opening you were last in", async ({ page }) => {
   await expect(greeting).toBeVisible({ timeout: 10_000 });
   await expect(greeting).toContainText(/won the last one/);
 });
+
+test("an offbeat opponent move says it is not your fault, and the book resumes", async ({ page }) => {
+  // Jason's London game: 1.d4 d5 2.Bf4 c6 — a main move order met by a sideline.
+  await useScriptedEngine(page, ["d7d5", "c7c6", "g8f6"]);
+  await setPrefs(page, { chattiness: "chatty", voice: false });
+  await page.goto("/train/london-system/");
+  await move(page, "d2", "d4");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
+  await move(page, "c1", "f4");
+  await expect(page.getByRole("button", { name: "Their move c6" })).toBeVisible({ timeout: 10_000 });
+
+  // 2.Bf4 is now authored, so the book does NOT end where it used to.
+  await expect(page.locator('[data-beat="book_end"]')).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Hint" })).toBeEnabled();
+});

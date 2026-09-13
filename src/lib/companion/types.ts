@@ -31,6 +31,7 @@ export type BeatKind =
   | "anticipation_only_defender"
   | "anticipation_all_covered"
   | "book_end"
+  | "book_resumed"
   | "repeat_mistake"
   | "swing_up"
   | "swing_down"

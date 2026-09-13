@@ -221,14 +221,41 @@ export function eventToLines(e: TrainEvent, ctx: BeatContext): CompanionLine[] {
         }),
       ];
 
-    case "book_ended":
+    case "book_ended": {
+      // Jason's London game: an offbeat second move by the opponent produced
+      // "that's the end of the book", and he could not tell whether he had done
+      // something wrong. Who left the book is the whole answer, so say it.
+      const them = e.by === "them";
+      const text = them ? `${e.san} is off book. Nothing you did wrong.` : `${e.san} takes us off book.`;
+      const why = them
+        ? `Your opponent played ${e.san}, which the book doesn't cover at this level. That's normal below 1200 — most games leave theory early. Keep playing your setup.`
+        : e.bookMove
+          ? `The line here was ${e.bookMove}. ${e.san} isn't necessarily worse — it just isn't the move this book follows, so from here you're on your own.`
+          : `From here you're past what the book covers.`;
+      // The full middlegame plan used to be the whole tap-to-reveal and read as a
+      // wall. Lead with the situation, then the plan's opening sentence.
+      const plan = ctx.spec.middlegamePlan.split(/(?<=\.)\s/)[0];
       return [
         caissa(e.plyIndex, {
           kind: "book_end",
-          text: "That's the end of the book. Now it's just chess.",
-          more: ctx.spec.middlegamePlan,
+          text,
+          more: `${why} ${plan}`,
           priority: 1,
           tone: "book",
+          dedupeKey: "book-boundary",
+        }),
+      ];
+    }
+
+    case "book_resumed":
+      return [
+        caissa(e.plyIndex, {
+          kind: "book_resumed",
+          text: "We're back in the book.",
+          more: "The game transposed into a line this opening does cover, so the guidance picks up again.",
+          priority: 1,
+          tone: "book",
+          dedupeKey: "book-boundary",
         }),
       ];
 

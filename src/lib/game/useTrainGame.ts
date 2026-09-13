@@ -243,8 +243,10 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
       let botCoachForEvent: CoachMessage | null = null;
       let thinkForEvent: ThinkAbout | null = null;
       setState((s) => {
-        const leftBook = s.leftBook || !nowInBook;
-        const bookEndedAt = s.bookEndedAt ?? (wasInBook && !nowInBook ? newHistory.length : null);
+        // Not sticky: a repertoire like the London transposes constantly, and one
+        // offbeat sideline used to end the coaching for the rest of the game.
+        const leftBook = !nowInBook;
+        const bookEndedAt = nowInBook ? null : s.bookEndedAt ?? newHistory.length;
         const bookLine = book.definingMoveAt(fenBefore) === choice.uci || (wasInBook && nowInBook);
         const botCoach = explainBotMove({ spec, book, fenBefore, fenAfter, move: info, history, tags, loss, bestReplyUci: null, freq, inOpening: !leftBook, bookLine });
         botCoachForEvent = botCoach;
@@ -270,7 +272,8 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
       });
 
       emit({ t: "bot_move", plyIndex: newHistory.length, ply, coach: botCoachForEvent, tags, ideas, think: thinkForEvent, fenAfter });
-      if (wasInBook && !nowInBook) emit({ t: "book_ended", plyIndex: newHistory.length });
+      if (wasInBook && !nowInBook) emit({ t: "book_ended", plyIndex: newHistory.length, by: "them", san: info.san });
+      if (!wasInBook && nowInBook) emit({ t: "book_resumed", plyIndex: newHistory.length });
 
       // Prefetch the eval of the new position: win%, hint, and the reply for the card.
       if (!result) {
@@ -337,13 +340,13 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
       if (historyBefore.length === 0) void engine()?.warmUp();
 
       setState((s) => {
-        const leftBook = s.leftBook || !nowInBook;
+        const leftBook = !nowInBook;
         return {
           ...s,
           fen: fenAfter,
           history,
           leftBook,
-          bookEndedAt: s.bookEndedAt ?? (wasInBook && !nowInBook ? history.length : null),
+          bookEndedAt: nowInBook ? null : s.bookEndedAt ?? history.length,
           result,
           phase: result ? "over" : leftBook ? "middlegame" : "opening",
           checking: !result,
@@ -358,7 +361,13 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
         };
       });
       emit({ t: "user_move", plyIndex: history.length, ply, tags });
-      if (wasInBook && !nowInBook) emit({ t: "book_ended", plyIndex: history.length });
+      if (wasInBook && !nowInBook) {
+        // Name the move the line actually wanted, so "off book" reads as a fork
+        // in the road rather than a verdict on the player.
+        const bookMove = spec.annotations[epd(fenBefore)]?.yourMove?.san;
+        emit({ t: "book_ended", plyIndex: history.length, by: "you", san: info.san, bookMove: bookMove === info.san ? undefined : bookMove });
+      }
+      if (!wasInBook && nowInBook) emit({ t: "book_resumed", plyIndex: history.length });
       if (result) return true;
 
       void (async () => {

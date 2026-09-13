@@ -130,6 +130,39 @@ export const londonSystem: OpeningSpec = {
       ],
     },
     [P("d4 d5")]: { yourMove: { san: "Nf3", why: "Develop toward the centre and control e5, your future outpost. Bf4 next." } },
+
+    // --- The 2.Bf4 move order -------------------------------------------------
+    // 2.Bf4 is at least as common as 2.Nf3 below 1200, and after ...Nf6 3.Nf3 it
+    // is literally the same position, so the book picks straight back up. These
+    // nodes exist because the baked tree is pruned to 500 nodes and drops some of
+    // them, which used to end the coaching two moves into the game.
+    [P("d4 d5 Bf4")]: {
+      replies: [
+        { san: "Nf6", verdict: "good", answer: "Nf3", howToAnswer: "Nf3 — and you're back in the main line.", why: "The natural move. After Nf3 this is exactly the 2.Nf3 Nf6 3.Bf4 position." },
+        { san: "c6", verdict: "good", answer: "e3", howToAnswer: "e3, then Nf3, Bd3, c3 and Nbd2. The setup doesn't change.", why: "Black prepares ...Bf5 or ...Qb6. Your bishop is already outside the pawn chain, so e3 costs you nothing." },
+        { san: "e6", verdict: "good", answer: "Nf3", howToAnswer: "Nf3, then e3 and Bd3.", why: "Solid, but it shuts in the light-squared bishop — the piece the London usually has the most trouble with." },
+        { san: "c5", verdict: "good", answer: "e3", howToAnswer: "e3. If ...Qb6 follows, answer Nc3 or Qc1, not b3.", why: "The critical try: Black hits d4 at once and eyes b2." },
+        { san: "Bf5", verdict: "dubious", answer: "e3", howToAnswer: "e3, then Bd3 to offer the trade on your terms.", why: "Black mirrors you, but committing the bishop this early lets you gain time against it." },
+        { san: "Nc6", verdict: "dubious", answer: "e3", howToAnswer: "e3 and Nf3 — Black's knight is in the way of ...c5.", why: "Playable, but ...c5 is Black's real counter and the knight now blocks it." },
+        { san: "Qd6", verdict: "dubious", answer: "Nc3", howToAnswer: "Nc3 — develop with tempo; the queen will have to move again.", why: "The queen comes out early to defend and gets chased." },
+      ],
+    },
+    [P("d4 d5 Bf4 Nf6")]: { yourMove: { san: "Nf3", why: "Straight into the main line: this is the same position as 2.Nf3 Nf6 3.Bf4." } },
+    [P("d4 d5 Bf4 c6")]: { yourMove: { san: "e3", why: "With the bishop already out, e3 is pure gain: it shores up d4 and frees the f1-bishop." } },
+    [P("d4 d5 Bf4 c6 e3")]: {
+      replies: [
+        { san: "Nf6", verdict: "good", answer: "Nf3", howToAnswer: "Nf3, then Bd3, c3 and Nbd2.", why: "Black develops normally and you finish the setup in any order." },
+        { san: "Bf5", verdict: "good", answer: "Nf3", howToAnswer: "Nf3, then c4 or Bd3 — Black's bishop is committed, so you can gain time on it.", why: "The point of ...c6: Black gets the bishop out before ...e6 shuts it in." },
+        { san: "Qb6", verdict: "dubious", answer: "Qc1", howToAnswer: "Qc1 — b2 is covered and the queen is fine there. Don't play b3.", why: "The b2-pawn looks loose. It isn't: defending calmly leaves Black's queen misplaced." },
+        { san: "e6", verdict: "dubious", answer: "Nf3", howToAnswer: "Nf3, Bd3, Nbd2 and c4 or e4 later.", why: "Passive — Black has walled in the c8-bishop behind their own pawns." },
+      ],
+    },
+    [P("d4 d5 Bf4 c6 e3 Nf6")]: { yourMove: { san: "Nf3", why: "The last piece of the structure. Now Bd3, c3 and Nbd2 in whatever order suits." } },
+    [P("d4 d5 Bf4 c6 e3 Bf5")]: { yourMove: { san: "Nf3", why: "Develop and take e5. Black's bishop is out, so keep an eye on c4 and Bd3 to challenge it." } },
+    [P("d4 d5 Bf4 c5")]: { yourMove: { san: "e3", why: "Hold the centre first. If ...Qb6 comes, Nc3 or Qc1 defends; b3 weakens exactly the squares your bishop left." } },
+    [P("d4 d5 Bf4 e6")]: { yourMove: { san: "Nf3", why: "Develop and claim e5. Black has just locked in the bishop the London fears most." } },
+    [P("d4 d5 Bf4 Bf5")]: { yourMove: { san: "e3", why: "Solid, and it prepares Bd3 to challenge Black's bishop on your terms." } },
+    [P("d4 d5 Bf4 Nc6")]: { yourMove: { san: "e3", why: "Build normally. Black's knight on c6 gets in the way of their own ...c5 break." } },
     [P("d4 d5 Nf3")]: {
       replies: [
         { san: "Nf6", verdict: "good", answer: "Bf4", howToAnswer: "Bf4 — the London bishop comes out before e3.", why: "Natural development." },
