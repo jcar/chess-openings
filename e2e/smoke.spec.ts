@@ -71,7 +71,10 @@ test("Caissa greets you, then narrates the moves in order", async ({ page }) => 
   // Your move and their reply both land in the transcript, as chips.
   await expect(page.getByRole("button", { name: "Your move e4" })).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole("button", { name: "Their move e5" })).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText(/Move 2/)).toBeVisible();
+  // The move number lives on the chips now, not in the header, which shows who
+  // you are playing instead.
+  await expect(page.getByRole("button", { name: "Your move e4" })).toContainText("1.");
+  await expect(page.locator("header")).toContainText(/vs /);
 });
 
 test("the board stays on screen and only the stream scrolls", async ({ page }, testInfo) => {
@@ -301,4 +304,90 @@ test("the header says off plan, and why, when the order rule breaks", async ({ p
   await move(page, "e2", "e3"); // e3 before Bf4: the one rule the London has
   await expect(page.getByText(/off plan/)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/e3 came before Bf4/)).toBeVisible();
+});
+
+test("she says so when you get it right, at the default setting", async ({ page }) => {
+  await useScriptedEngine(page, ["d7d5", "g8f6"]);
+  await page.goto("/train/london-system/");
+  await move(page, "d2", "d4");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
+  await move(page, "c1", "f4");
+  // Praise used to be built at a priority the Normal ceiling dropped, so the
+  // coach only ever spoke when you erred.
+  const onPlan = page.locator('[data-beat="verdict_good"]', { hasText: "On plan" });
+  await expect(onPlan).toBeVisible({ timeout: 10_000 });
+});
+
+test("the setup counter opens the goals behind it", async ({ page }) => {
+  await useScriptedEngine(page, ["d7d5"]);
+  await page.goto("/train/london-system/");
+  await move(page, "d2", "d4");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
+
+  await page.getByRole("button", { name: /setup goals\. Show the setup/ }).click();
+  const sheet = page.getByRole("dialog", { name: /setup/i });
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByText("Bishop to f4 or g3")).toBeVisible();
+  await expect(sheet.getByText(/Pawn on c3/)).toBeVisible();
+  await expect(sheet.getByText(/^Castle —/)).toBeVisible();
+  await sheet.getByRole("button", { name: "Done" }).click();
+  await expect(sheet).toHaveCount(0);
+});
+
+test("the transcript is numbered like a scoresheet", async ({ page }) => {
+  await useScriptedEngine(page, ["d7d5"]);
+  await page.goto("/train/london-system/");
+  await move(page, "d2", "d4");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("button", { name: "Your move d4" })).toContainText("1.");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toContainText("1…");
+});
+
+test("board coordinates sit beside the squares, not on the pieces", async ({ page }) => {
+  await page.goto("/openings/london-system/");
+  // The page carries two boards: the tabiya and the structure diagram.
+  const board = page.locator("[data-chessboard]").first();
+  await board.locator('[data-square="a1"]').waitFor({ timeout: 10_000 });
+  const a1 = await board.locator('[data-square="a1"]').boundingBox();
+
+  const labels = board.locator(".board-ranks span");
+  await expect(labels).toHaveCount(8);
+  const files = board.locator(".board-files span");
+  await expect(files).toHaveCount(8);
+
+  // Every rank label finishes before the first file of squares begins.
+  const label = await labels.first().boundingBox();
+  expect(label!.x + label!.width).toBeLessThanOrEqual(a1!.x + 1);
+  // And the file labels sit below the last rank of squares.
+  const fileLabel = await files.first().boundingBox();
+  expect(fileLabel!.y).toBeGreaterThanOrEqual(a1!.y + a1!.height - 1);
+});
+
+test("home offers the opening you last played", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "openinglab:sessions:v1",
+      JSON.stringify({
+        recent: [
+          {
+            openingId: "london-system",
+            at: new Date().toISOString(),
+            result: "win",
+            plies: 30,
+            clean: true,
+            botElo: 900,
+            accuracy: 78,
+            worst: { san: "Qb6", moveNo: 7, drop: 14 },
+            setupScore: 0.75,
+            benchmarks: null,
+          },
+        ],
+      }),
+    );
+  });
+  await page.goto("/");
+  const resume = page.getByRole("link", { name: /Pick up where you left off/ });
+  await expect(resume).toBeVisible();
+  await expect(resume).toContainText("London System");
+  await expect(resume).toContainText(/you won/);
 });

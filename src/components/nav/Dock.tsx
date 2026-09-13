@@ -5,7 +5,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { OpeningDrillIcon, InfoIcon, ChevronRightIcon } from "@/components/icons";
+import { OpeningDrillIcon, InfoIcon } from "@/components/icons";
 
 function HomeGlyph({ className = "" }: { className?: string }) {
   return (
@@ -18,10 +18,22 @@ function HomeGlyph({ className = "" }: { className?: string }) {
   );
 }
 
+/** A bar chart, because Summary is where your results live. The bare chevron it
+ *  replaced pointed at nothing and named no destination. */
+function ProgressGlyph({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <rect x="3.5" y="13" width="4.2" height="8" rx="1.1" opacity=".5" />
+      <rect x="9.9" y="8.5" width="4.2" height="12.5" rx="1.1" opacity=".75" />
+      <rect x="16.3" y="3.5" width="4.2" height="17.5" rx="1.1" />
+    </svg>
+  );
+}
+
 const NAV = [
   { href: "/", label: "Spar", Icon: HomeGlyph, exact: true },
   { href: "/openings", label: "Openings", Icon: OpeningDrillIcon, exact: false },
-  { href: "/summary", label: "Summary", Icon: ChevronRightIcon, exact: false },
+  { href: "/summary", label: "Summary", Icon: ProgressGlyph, exact: false },
   { href: "/about", label: "About", Icon: InfoIcon, exact: false },
 ];
 

@@ -13,6 +13,10 @@ import { judge } from "@/lib/coach/classify";
 import { explainUserMove } from "@/lib/coach/explain";
 import { describeMove, tagMove, type PlyRecord } from "@/lib/coach/features";
 import { eventToLines, type BeatContext } from "@/lib/companion/beats";
+import { admit } from "@/lib/companion/filter";
+import { MAX_PRIORITY } from "@/lib/companion/prefs";
+import type { CompanionLine } from "@/lib/companion/types";
+import { buildGoals } from "@/components/companion/SetupSheet";
 import { missingGoals, planStatus } from "@/lib/setup/plan";
 import { setupProgress } from "@/lib/setup/progress";
 
@@ -164,5 +168,51 @@ describe("the post-game setup report", () => {
 
   it("lists what never arrived", () => {
     expect(missingGoals(progressAfter("d4 d5 Bf4"))).toContain("never castled");
+  });
+});
+
+const beatCtx: BeatContext = { spec: london, recurring: [], lastSession: null };
+
+describe("praise actually reaches the player", () => {
+  // The whole point of an on-plan message is that it arrives at the default
+  // setting. It used to be built at priority 2, which Normal drops.
+  it("admits a verdict on your own move at Quiet and Normal", () => {
+    const praise: CompanionLine = {
+      id: "3:verdict_good",
+      plyIndex: 3,
+      speaker: "caissa",
+      kind: "verdict_good",
+      text: "Bf4. On plan.",
+      priority: 1,
+      speak: true,
+      tone: "praise",
+    };
+    expect(admit(praise, { chattiness: "normal", recent: [] })).toBe(true);
+    expect(admit(praise, { chattiness: "chatty", recent: [] })).toBe(true);
+  });
+
+  it("builds the on-plan verdict at a priority Normal lets through", () => {
+    const message = explainUserMove(ctxFor("d4 d5", "Bf4"));
+    const [line] = eventToLines(
+      { t: "user_judged", plyIndex: 3, message, judgement: null, winPct: null, deltaPct: null, tags: [], pause: false, stepping: false },
+      beatCtx,
+    );
+    expect(line.priority).toBeLessThanOrEqual(MAX_PRIORITY.normal);
+    expect(admit(line, { chattiness: "normal", recent: [] })).toBe(true);
+  });
+
+  it("still keeps idle colour out at Normal", () => {
+    const colour: CompanionLine = { id: "3:orient", plyIndex: 3, speaker: "caissa", kind: "orient", text: "A thought.", priority: 2, speak: true };
+    expect(admit(colour, { chattiness: "normal", recent: [] })).toBe(false);
+  });
+});
+
+describe("the setup sheet shows every goal", () => {
+  it("lists all eight London goals with their reasons", () => {
+    const goals = buildGoals(london, progressAfter("d4 d5 Bf4"));
+    expect(goals).toHaveLength(8);
+    expect(goals.filter((g) => g.done)).toHaveLength(2);
+    expect(goals.find((g) => g.label.startsWith("Bishop to f4"))?.why).toMatch(/before e3/);
+    expect(goals.some((g) => g.label === "Castle")).toBe(true);
   });
 });

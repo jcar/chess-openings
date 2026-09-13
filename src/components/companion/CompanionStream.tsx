@@ -41,7 +41,10 @@ export function CompanionStream({
           const el = e.currentTarget;
           following.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX;
         }}
-        className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-3 pb-3"
+        // Content scrolled above the top edge used to be guillotined, which read
+        // as a rendering fault rather than as "there is more above". The mask
+        // fades the first few pixels instead.
+        className="stream-scroll flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-3 pb-3 pt-2"
       >
         {lines.map((l) => (
           <CompanionLineView key={l.id} line={l} onAction={onAction} active={activePly != null && l.plyIndex === activePly + 1} />

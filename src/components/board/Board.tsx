@@ -200,12 +200,27 @@ export function Board({
     onSelect?.(square);
   }
 
+  // Coordinates are drawn in the frame rather than inside the squares. The
+  // library prints them over the piece glyphs, which on the first rank and the
+  // a-file means the letters land on top of the rooks — and coordinates are what
+  // a learning player checks most.
+  const files = orientation === "white" ? FILES : [...FILES].reverse();
+  const ranks = orientation === "white" ? RANKS : [...RANKS].reverse();
+
   return (
     <div
       data-chessboard
       className="board-frame mx-auto w-full max-w-[min(92vw,560px,72svh)] touch-none select-none"
     >
-     <div className="board-inner">
+     <div className={showNotation ? "board-grid" : undefined}>
+      {showNotation && (
+        <div className="board-ranks" aria-hidden="true">
+          {ranks.map((r) => (
+            <span key={r}>{r}</span>
+          ))}
+        </div>
+      )}
+      <div className="board-inner">
       <Chessboard
         options={{
           position: fen,
@@ -215,7 +230,7 @@ export function Board({
           animationDurationInMs: 200,
           squareStyles: computedStyles,
           arrows: boardArrows,
-          showNotation,
+          showNotation: false,
           // CSS vars let kid screens reskin the board (see lib/kids/cosmetics);
           // the hex fallbacks keep every other board exactly as before.
           darkSquareStyle: { backgroundColor: "var(--board-dark, #7c93b5)" },
@@ -232,7 +247,18 @@ export function Board({
           },
         }}
       />
+      </div>
+      {showNotation && (
+        <div className="board-files" aria-hidden="true">
+          {files.map((f) => (
+            <span key={f}>{f}</span>
+          ))}
+        </div>
+      )}
      </div>
     </div>
   );
 }
+
+const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"] as const;
+const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"] as const;

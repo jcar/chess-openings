@@ -38,14 +38,20 @@ export function CompanionLineView({
   if (line.speaker !== "caissa") {
     const jump = line.actions?.find((a) => a.kind === "jump");
     const mine = line.speaker === "you";
+    // plyIndex is 1-based: ply 1 is White's first move. The number is shown on
+    // White's move only, the way a scoresheet is written — without it the chips
+    // are a list of moves with nothing to count from.
+    const moveNo = Math.ceil(line.plyIndex / 2);
+    const whiteToPlay = line.plyIndex % 2 === 1;
     return (
       <div className={`flex ${mine ? "justify-end" : "justify-start"}`} data-beat={line.kind}>
         <button
           type="button"
           onClick={() => jump && onAction(jump)}
           aria-label={`${mine ? "Your move" : "Their move"} ${line.san}`}
-          className={`min-h-[32px] rounded-full border px-3 py-1 font-mono text-sm ${active ? "border-primary bg-primary/15 text-primary-strong" : "border-line text-ink-soft"}`}
+          className={`flex min-h-[32px] items-baseline gap-1.5 rounded-full border px-3 py-1 font-mono text-sm ${active ? "border-primary bg-primary/15 text-primary-strong" : "border-line text-ink-soft"}`}
         >
+          <span className="text-[11px] tabular-nums text-ink-soft/70">{whiteToPlay ? `${moveNo}.` : `${moveNo}…`}</span>
           {line.san}
         </button>
       </div>

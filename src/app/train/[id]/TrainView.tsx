@@ -10,6 +10,7 @@ import { Board } from "@/components/board/Board";
 import { EvalStrip } from "@/components/board/EvalStrip";
 import { CaissaHeader } from "@/components/companion/CaissaHeader";
 import { CompanionStream } from "@/components/companion/CompanionStream";
+import { SetupSheet } from "@/components/companion/SetupSheet";
 import type { CaissaStatus } from "@/components/companion/CaissaAvatar";
 import { estimateFor, useRating } from "@/lib/adapt/rating";
 import { difficultyFor, personaFor } from "@/lib/adapt/strength";
@@ -32,6 +33,7 @@ export function TrainView({ spec }: { spec: OpeningSpec }) {
   const { voice } = useCompanionPrefs();
   const companion = useCompanion(spec);
   const [reviewIndex, setReviewIndex] = useState<number | null>(null);
+  const [setupOpen, setSetupOpen] = useState(false);
 
   useSpeech(companion.lines, { voice });
 
@@ -57,7 +59,6 @@ export function TrainView({ spec }: { spec: OpeningSpec }) {
   const reviewing = reviewIndex !== null;
   const shownFen = reviewing ? state.history[reviewIndex]?.fen ?? state.fen : state.fen;
   const last = reviewing ? state.history[reviewIndex] : state.history[state.history.length - 1];
-  const moveNo = Math.floor(state.history.length / 2) + 1;
   const canTakeBack = !reviewing && state.history.some((p) => p.byUser) && !state.botThinking && !state.checking;
   const canHint = userToMove && !state.hintShown;
   const lastUser = [...state.history].reverse().find((p) => p.byUser);
@@ -118,7 +119,9 @@ export function TrainView({ spec }: { spec: OpeningSpec }) {
     ? "Reviewing · tap a move to move around"
     : state.result
       ? `Game over · setup ${plan.met}/${plan.total}`
-      : `Move ${moveNo} · vs ${personaFor(difficulty.botElo)}`;
+      // The move number lives on every chip in the transcript now, so repeating
+      // it here only crowded the opponent's name into an ellipsis.
+      : `vs ${personaFor(difficulty.botElo)}`;
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-lg flex-col">
@@ -129,7 +132,9 @@ export function TrainView({ spec }: { spec: OpeningSpec }) {
         backHref="/"
         backLabel="Back to openings"
         plan={reviewing || state.result ? undefined : plan}
+        onPlanTap={plan.total ? () => setSetupOpen(true) : undefined}
       />
+      {setupOpen && <SetupSheet spec={spec} setup={setup} onClose={() => setSetupOpen(false)} />}
 
       <div className="shrink-0">
         <EvalStrip userWinPct={state.userWinPct} userIsWhite={userColor === "white"} delta={delta} />

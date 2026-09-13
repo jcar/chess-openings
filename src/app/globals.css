@@ -166,6 +166,50 @@
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.4), 0 2px 8px rgba(0,0,0,.3);
 }
 
+/* The conversation is the only scrolling region, so it needs to LOOK scrollable.
+   Without this, a partly-scrolled move chip is cut clean in half by the top edge
+   and reads as a broken layout. */
+.stream-scroll {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
+  scroll-padding-top: 14px;
+}
+
+/* Coordinates live in the frame, beside the squares, never over the pieces. */
+.board-grid {
+  display: grid;
+  grid-template-columns: 0.95rem 1fr;
+  grid-template-rows: 1fr 0.85rem;
+  align-items: stretch;
+}
+.board-grid > .board-inner { grid-column: 2; grid-row: 1; }
+.board-ranks,
+.board-files {
+  display: grid;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  line-height: 1;
+  color: var(--fg-soft);
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+.board-ranks {
+  grid-column: 1;
+  grid-row: 1;
+  grid-template-rows: repeat(8, 1fr);
+  justify-items: center;
+  align-items: center;
+  padding-right: 2px;
+}
+.board-files {
+  grid-column: 2;
+  grid-row: 2;
+  grid-template-columns: repeat(8, 1fr);
+  justify-items: center;
+  align-items: center;
+  padding-top: 3px;
+}
+
 /* A faint board-checker motif, tucked into a plate's corner (theme-aware). */
 .plate-motif {
   position: absolute;

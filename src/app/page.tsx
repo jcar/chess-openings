@@ -1,11 +1,25 @@
 import Link from "next/link";
 import { coreOpenings, otherOpenings } from "@/content";
 import type { OpeningSpec } from "@/content/spec";
-import { Chip } from "@/components/ui/Chip";
 import { RatingChip } from "@/components/RatingChip";
+import { ResumeCard } from "@/components/ResumeCard";
 
-function SideChip({ side }: { side: OpeningSpec["side"] }) {
-  return <Chip tone={side === "white" ? "neutral" : "primary"}>{side === "white" ? "You play White" : "You play Black"}</Chip>;
+/** The side you play, as a board square rather than a sentence. "You play White"
+ *  set on every card was wider than the opening's own name. */
+function SideMark({ side }: { side: OpeningSpec["side"] }) {
+  const white = side === "white";
+  return (
+    <span
+      aria-label={white ? "You play White" : "You play Black"}
+      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[3px] text-[11px] font-bold"
+      style={{
+        background: white ? "var(--board-light)" : "var(--board-dark)",
+        color: white ? "#16243b" : "#0b1424",
+      }}
+    >
+      {white ? "W" : "B"}
+    </span>
+  );
 }
 
 function OpeningCard({ o }: { o: OpeningSpec }) {
@@ -19,9 +33,9 @@ function OpeningCard({ o }: { o: OpeningSpec }) {
           <div className="font-display text-lg font-bold leading-tight">{o.name}</div>
           <div className="mt-1 font-mono text-xs text-ink-soft">{o.firstMoves}</div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          <SideChip side={o.side} />
+        <div className="flex shrink-0 items-center gap-2">
           <RatingChip openingId={o.id} />
+          <SideMark side={o.side} />
         </div>
       </div>
       <p className="mt-3 line-clamp-2 text-sm leading-snug text-ink-soft">{o.pitch}</p>
@@ -34,17 +48,22 @@ export default function Home() {
   const rest = otherOpenings();
   return (
     <div className="mx-auto w-full max-w-lg px-4 py-6">
-      <header className="mb-6">
+      <header className="mb-4">
         <h1 className="font-display text-3xl font-extrabold tracking-tight">Who do you want to spar?</h1>
-        <p className="mt-2 text-sm text-ink-soft">
-          Pick an opening. The bot plays like your real opponents, and the coach explains the ideas as you go.
-        </p>
+        <p className="mt-1.5 text-sm text-ink-soft">The bot plays like your real opponents.</p>
       </header>
 
-      <Link href="/principles/" className="mb-6 block rounded-2xl border border-sage/40 bg-sage/10 p-4 active:scale-[0.99]">
-        <div className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-sage">New to openings?</div>
-        <div className="mt-1 font-display text-lg font-bold leading-tight">Principles Mode</div>
-        <p className="mt-1 text-sm leading-snug text-ink-soft">No lines to learn. Develop, castle, don&apos;t hang pieces — scored live. Graduate to a real opening in three games.</p>
+      <ResumeCard />
+
+      <Link
+        href="/principles/"
+        className="mb-5 flex min-h-[56px] items-center gap-3 rounded-2xl border border-sage/40 bg-sage/10 px-4 py-3 active:scale-[0.99]"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="font-display text-[15px] font-bold leading-tight">Principles Mode</div>
+          <p className="text-xs text-ink-soft">New to openings? Start with the ideas, not the lines.</p>
+        </div>
+        <span aria-hidden className="shrink-0 text-sage">→</span>
       </Link>
 
       <section aria-labelledby="core">
@@ -69,7 +88,7 @@ export default function Home() {
                 <div className="font-semibold leading-tight">{o.name}</div>
                 <div className="font-mono text-[11px] text-ink-soft">{o.firstMoves}</div>
               </div>
-              <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">{o.side}</span>
+              <SideMark side={o.side} />
             </Link>
           ))}
         </div>

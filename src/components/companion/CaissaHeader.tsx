@@ -19,6 +19,7 @@ export function CaissaHeader({
   backHref,
   backLabel,
   plan,
+  onPlanTap,
 }: {
   title: string;
   subtitle: string;
@@ -27,6 +28,8 @@ export function CaissaHeader({
   backLabel: string;
   /** Always-visible answer to "am I still playing this opening right?" */
   plan?: PlanStatus;
+  /** Opens the goals behind the counter. Without it the chip is just a number. */
+  onPlanTap?: () => void;
 }) {
   const { voice } = useCompanionPrefs();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -41,17 +44,22 @@ export function CaissaHeader({
         <CaissaAvatar status={status} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate font-display text-base font-bold leading-tight">{title}</h1>
-          <div className="truncate text-xs text-ink-soft">
+          <div className="flex min-w-0 items-center gap-1.5 text-xs text-ink-soft">
             {plan && (
-              <>
-                <span className={plan.state === "off_plan" ? "font-bold text-clay" : "font-bold text-sage"}>
-                  {plan.label}
-                  {plan.total ? ` ${plan.met}/${plan.total}` : ""}
-                </span>
-                <span aria-hidden> · </span>
-              </>
+              <button
+                type="button"
+                onClick={onPlanTap}
+                disabled={!onPlanTap}
+                aria-label={`${plan.label}, ${plan.met} of ${plan.total} setup goals. Show the setup.`}
+                className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-bold ${
+                  plan.state === "off_plan" ? "border-clay/50 bg-clay/15 text-clay" : "border-sage/40 bg-sage/10 text-sage"
+                }`}
+              >
+                {plan.label}
+                {plan.total ? ` ${plan.met}/${plan.total}` : ""}
+              </button>
             )}
-            {plan?.detail ? plan.detail : subtitle}
+            <span className="truncate">{subtitle}</span>
           </div>
         </div>
         {canSpeak && (
@@ -74,6 +82,9 @@ export function CaissaHeader({
           ⋯
         </button>
       </header>
+      {plan?.detail && (
+        <p className="shrink-0 px-3 pb-1 text-[11px] leading-snug text-clay">{plan.detail}</p>
+      )}
       {settingsOpen && <CompanionSettings onClose={() => setSettingsOpen(false)} />}
     </>
   );

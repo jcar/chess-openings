@@ -19,10 +19,10 @@ export function TheoryView({ spec }: { spec: OpeningSpec }) {
         </Link>
         <div className="min-w-0 flex-1">
           <h1 className="truncate font-display text-lg font-bold leading-tight">{spec.name}</h1>
-          <div className="truncate font-mono text-xs text-ink-soft">
-            {spec.firstMoves}
-            {spec.eco ? ` · ${spec.eco}` : ""}
-          </div>
+          {/* The ECO code used to sit here. It is a librarian's index, and it
+              earns nothing from a player rated under 1200 — it moves to the
+              details further down, where it is labelled. */}
+          <div className="truncate font-mono text-xs text-ink-soft">{spec.firstMoves}</div>
         </div>
       </header>
 
@@ -123,6 +123,13 @@ export function TheoryView({ spec }: { spec: OpeningSpec }) {
             ))}
           </div>
         </section>
+
+        {spec.eco && (
+          <p className="text-xs text-ink-soft">
+            Catalogued as <span className="font-mono">{spec.eco}</span> in the Encyclopaedia of Chess Openings, the
+            reference index most databases sort by.
+          </p>
+        )}
       </div>
     </div>
   );

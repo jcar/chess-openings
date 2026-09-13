@@ -73,10 +73,12 @@ function verdictKind(m: CoachMessage): BeatKind {
   return "verdict_note";
 }
 
+/** A verdict on YOUR OWN move is priority 1 whatever its tone. Praise used to sit
+ *  at 2, which the Normal ceiling drops, so the coach spoke when you erred and
+ *  went silent when you got it right — the one feedback loop a trainer must have.
+ *  Idle colour and remarks about the opponent still sit at 2. */
 function verdictPriority(m: CoachMessage): Priority {
   if (m.severity === "blunder" || m.severity === "mistake") return 0;
-  if (m.kind === "warn") return 1;
-  if (m.kind === "praise") return 2;
   return 1;
 }
 
