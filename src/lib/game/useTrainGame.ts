@@ -244,6 +244,7 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
       const ideas = firedIdeas(spec, fenAfter, info, tags, wasInBook && !nowInBook);
       let botCoachForEvent: CoachMessage | null = null;
       let thinkForEvent: ThinkAbout | null = null;
+      const checkpointNow = result ? null : maybeCheckpoint(g);
       setState((s) => {
         // Not sticky: a repertoire like the London transposes constantly, and one
         // offbeat sideline used to end the coaching for the rest of the game.
@@ -266,7 +267,7 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
           ideas,
           coach: botCoach,
           think: result ? null : promptFor(fenAfter, newHistory, leftBook, ideas),
-          checkpoint: result ? null : maybeCheckpoint(g),
+          checkpoint: checkpointNow,
           checkpointResult: null,
           hintUci: null,
           hintShown: false,
@@ -274,6 +275,10 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
       });
 
       emit({ t: "bot_move", plyIndex: newHistory.length, ply, coach: botCoachForEvent, tags, ideas, think: thinkForEvent, fenAfter });
+      // A checkpoint blocks the board until it is answered, so it MUST be asked.
+      // Storing it without emitting leaves the player unable to move with nothing
+      // on screen explaining why — which is what the London did at move three.
+      if (checkpointNow) emit({ t: "checkpoint", plyIndex: newHistory.length, checkpoint: checkpointNow });
       if (wasInBook && !nowInBook) emit({ t: "book_ended", plyIndex: newHistory.length, by: "them", san: info.san });
       if (!wasInBook && nowInBook) emit({ t: "book_resumed", plyIndex: newHistory.length });
 
@@ -308,7 +313,9 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
       if (sideOf(g) !== userColor) void botMove(g, [], mySeq);
       else {
         void prefetch(g, mySeq);
-        setState((s) => ({ ...s, checkpoint: maybeCheckpoint(g), think: promptFor(g.fen(), [], false, []) }));
+        const cp = maybeCheckpoint(g);
+        setState((s) => ({ ...s, checkpoint: cp, think: promptFor(g.fen(), [], false, []) }));
+        if (cp) emit({ t: "checkpoint", plyIndex: 0, checkpoint: cp });
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -492,7 +499,9 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
     if (sideOf(g) !== userColor) void botMove(g, [], mySeq);
     else {
       void prefetch(g, mySeq);
-      setState((s) => ({ ...s, checkpoint: maybeCheckpoint(g), think: promptFor(g.fen(), [], false, []) }));
+      const cp = maybeCheckpoint(g);
+      setState((s) => ({ ...s, checkpoint: cp, think: promptFor(g.fen(), [], false, []) }));
+      if (cp) emit({ t: "checkpoint", plyIndex: 0, checkpoint: cp });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [botMove, dataReady, prefetch, userColor]);

@@ -391,3 +391,30 @@ test("home offers the opening you last played", async ({ page }) => {
   await expect(resume).toContainText("London System");
   await expect(resume).toContainText(/you won/);
 });
+
+test("a checkpoint asks its question before it locks the board", async ({ page }) => {
+  // 1.d4 d5 2.Nf3 Nf6 puts the London's move-order checkpoint on the board with
+  // the player on plan 2/8 and to move. The checkpoint blocks input, so if the
+  // question is never asked the game is simply stuck with nothing to tap.
+  await useScriptedEngine(page, ["d7d5", "g8f6"]);
+  await page.goto("/train/london-system/");
+  await move(page, "d2", "d4");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
+  await move(page, "g1", "f3");
+  await expect(page.getByRole("button", { name: "Their move Nf6" })).toBeVisible({ timeout: 10_000 });
+
+  const question = page.locator('[data-beat="checkpoint_q"]');
+  await expect(question).toBeVisible({ timeout: 10_000 });
+  await expect(question).toContainText(/move-order rule/i);
+
+  // Blocked until answered, which is intended — but now it says so.
+  await move(page, "c1", "f4");
+  await expect(page.locator('[data-square="f4"] [data-piece]')).toHaveCount(0);
+
+  await question.getByRole("button", { name: /Bishop to f4 before e3/ }).click();
+  await expect(page.locator('[data-beat="checkpoint_result"]')).toBeVisible({ timeout: 10_000 });
+
+  // And the board is live again.
+  await move(page, "c1", "f4");
+  await expect(page.locator('[data-square="f4"] [data-piece]')).toHaveCount(1, { timeout: 10_000 });
+});
