@@ -1,0 +1,90 @@
+"use client";
+
+// One line of the conversation. Hers are bubbles; moves are compact chips you can
+// tap to send the board back to that moment.
+
+import { useState } from "react";
+import { CaissaAvatar } from "./CaissaAvatar";
+import type { CompanionLine, LineAction, Tone } from "@/lib/companion/types";
+
+const TONE_TEXT: Record<Tone, string> = {
+  warn: "text-clay",
+  praise: "text-sage",
+  punish: "text-amber",
+  book: "text-primary-strong",
+  note: "text-ink",
+};
+
+const TONE_EDGE: Record<Tone, string> = {
+  warn: "border-clay/40",
+  praise: "border-sage/40",
+  punish: "border-amber/40",
+  book: "border-primary/40",
+  note: "border-line",
+};
+
+export function CompanionLineView({
+  line,
+  onAction,
+  active = false,
+}: {
+  line: CompanionLine;
+  onAction: (a: LineAction) => void;
+  active?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const tone = line.tone ?? "note";
+
+  if (line.speaker !== "caissa") {
+    const jump = line.actions?.find((a) => a.kind === "jump");
+    const mine = line.speaker === "you";
+    return (
+      <div className={`flex ${mine ? "justify-end" : "justify-start"}`} data-beat={line.kind}>
+        <button
+          type="button"
+          onClick={() => jump && onAction(jump)}
+          aria-label={`${mine ? "Your move" : "Their move"} ${line.san}`}
+          className={`min-h-[32px] rounded-full border px-3 py-1 font-mono text-sm ${active ? "border-primary bg-primary/15 text-primary-strong" : "border-line text-ink-soft"}`}
+        >
+          {line.san}
+        </button>
+      </div>
+    );
+  }
+
+  const expandable = !!line.more;
+  return (
+    <div className="flex items-start gap-2" data-beat={line.kind} data-spoken={line.speak ? "true" : "false"}>
+      <CaissaAvatar status={line.priority === 0 ? "alert" : "idle"} size={26} />
+      <div className={`min-w-0 flex-1 rounded-2xl border bg-card px-3 py-2 ${TONE_EDGE[tone]}`}>
+        <button
+          type="button"
+          onClick={() => expandable && setOpen((v) => !v)}
+          disabled={!expandable}
+          className="w-full text-left"
+          aria-expanded={expandable ? open : undefined}
+        >
+          <span className={`text-[15px] leading-snug ${TONE_TEXT[tone]}`}>{line.text}</span>
+          {expandable && !open && <span className="ml-1 text-xs text-ink-soft">· why</span>}
+        </button>
+        {open && line.more && <p className="mt-1.5 text-sm leading-snug text-ink-soft">{line.more}</p>}
+        {line.actions && line.actions.some((a) => a.kind !== "jump") && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {line.actions
+              .filter((a) => a.kind !== "jump")
+              .map((a, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => onAction(a)}
+                  className="min-h-[44px] flex-1 rounded-xl border border-line bg-bg px-3 text-sm font-semibold active:scale-[0.99]"
+                >
+                  {a.label}
+                </button>
+              ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

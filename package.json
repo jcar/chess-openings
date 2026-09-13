@@ -1,0 +1,44 @@
+{
+  "name": "openinglab",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "validate": "tsx scripts/validate-content.ts",
+    "sync": "tsx scripts/sync-from-chesshall.ts",
+    "bake:explorer": "tsx scripts/bake-explorer.ts",
+    "bake:evals": "tsx scripts/bake-evals.ts",
+    "sheet": "tsx scripts/authoring-sheet.ts",
+    "new-opening": "tsx scripts/new-opening.ts",
+    "check:data": "tsx scripts/check-data-size.ts"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-chessboard": "^5.10.0",
+    "react-dom": "19.2.4",
+    "stockfish": "^18.0.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "serve": "^14.2.6",
+    "tailwindcss": "^4",
+    "tsx": "^4.22.4",
+    "typescript": "^5",
+    "vitest": "^3"
+  }
+}

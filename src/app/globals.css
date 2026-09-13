@@ -1,0 +1,306 @@
+@import "tailwindcss";
+
+/*
+ * Chess Trainer — "Midnight Club" design system.
+ *
+ * The whole palette is drawn FROM the board: the deep navy ground is the dark
+ * square's shadow, the pale blue-grey is the light square (and our text). One
+ * cool accent — sapphire — carries every CTA, selection, and flourish.
+ * Dark is the default (a moonlit hall); light is the daylight counterpart.
+ *
+ * Raw CSS vars are defined per theme, then mapped to Tailwind tokens via
+ * `@theme inline` so every `bg-bg` / `text-ink` / `bg-primary` utility flips
+ * live when `data-theme` changes on <html>.
+ */
+
+/* ---- DARK (default): the candlelit hall ---- */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces — navy, pulled from the dark square */
+  --bg: #0b1424;        /* the room */
+  --surface: #111d31;   /* raised panel */
+  --card: #16243b;      /* cards / placards */
+  --rail: #0a1120;      /* the crest rail (a shade deeper than the room) */
+
+  /* Foreground — the light square, as text */
+  --fg: #e8eef7;
+  --fg-soft: #9fb0c7;
+  --line: #243450;      /* cool hairline */
+
+  /* Brand — sapphire */
+  --primary: #4f8ff7;        /* CTAs, accents */
+  --primary-strong: #86b8ff; /* brighter sapphire for emphasis / accent text */
+  --accent: #4f8ff7;         /* eyebrows / highlights */
+  --on-accent: #f2f7ff;      /* near-white text on sapphire */
+  --accent-deep: #2f63c4;    /* bottom edge of the beveled button */
+
+  /* The board (unchanged) + its carved frame */
+  --board-dark: #7c93b5;
+  --board-light: #e6ecf5;
+  --frame-a: #2c3651;   /* frame top-light */
+  --frame-b: #131d31;   /* frame shadow */
+
+  /* Semantic / difficulty */
+  --sage: #46d6a0;  /* success / Beginner */
+  --amber: #f0b341; /* Intermediate */
+  --clay: #f0728a;  /* Advanced / danger */
+
+  /* Kid-track flex accents (layered only in kidMode) */
+  --kid-teal: #2dd4bf;
+  --kid-coral: #fb8a6b;
+
+  /* Elevation — deep, with a faint top sheen */
+  --elev-soft: 0 1px 2px rgba(0,0,0,.45), 0 8px 24px -10px rgba(0,0,0,.7);
+  --elev-lift: 0 2px 6px rgba(0,0,0,.5), 0 26px 50px -16px rgba(0,0,0,.8);
+  --glow-accent: 0 0 0 1px rgba(79,143,247,.55), 0 0 22px -4px rgba(79,143,247,.45);
+
+  /* The room: a moonlit vignette behind everything */
+  --room-bg: radial-gradient(130% 90% at 50% -8%, #16243f 0%, #0b1424 56%, #060c17 100%);
+}
+
+/* ---- LIGHT: the same hall by daylight (cool marble + gold) ---- */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #e9eef6;
+  --surface: #f5f8fd;
+  --card: #ffffff;
+  --rail: #dde5f1;
+
+  --fg: #16243e;
+  --fg-soft: #5b6d8a;
+  --line: #d2dded;
+
+  --primary: #2f6fe0;
+  --primary-strong: #1f56c0;  /* readable sapphire text on light */
+  --accent: #2f6fe0;
+  --on-accent: #f4f8ff;
+  --accent-deep: #234e9e;
+
+  --board-dark: #7c93b5;
+  --board-light: #e6ecf5;
+  --frame-a: #ccd6e4;
+  --frame-b: #9aa8bf;
+
+  --sage: #0f9d6b;
+  --amber: #b07d1e;
+  --clay: #d83a59;
+
+  --kid-teal: #0d9488;
+  --kid-coral: #f4734f;
+
+  --elev-soft: 0 1px 2px rgba(22,36,62,.07), 0 8px 22px -10px rgba(22,36,62,.16);
+  --elev-lift: 0 2px 6px rgba(22,36,62,.1), 0 26px 50px -16px rgba(22,36,62,.22);
+  --glow-accent: 0 0 0 1px rgba(47,111,224,.5), 0 0 18px -4px rgba(47,111,224,.35);
+
+  --room-bg: radial-gradient(130% 90% at 50% -8%, #f6f9fd 0%, #e9eef6 58%, #dae2ef 100%);
+}
+
+/* ---- Map raw vars → Tailwind tokens ---- */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-ink: var(--fg);
+  --color-ink-soft: var(--fg-soft);
+  --color-line: var(--line);
+
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+
+  --color-sage: var(--sage);
+  --color-amber: var(--amber);
+  --color-clay: var(--clay);
+
+  --color-kid-teal: var(--kid-teal);
+  --color-kid-coral: var(--kid-coral);
+
+  /* Type: a fresh grotesque display (Bricolage Grotesque) over a clean humanist body (Inter). */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --shadow-soft: var(--elev-soft);
+  --shadow-lift: var(--elev-lift);
+}
+
+@layer base {
+  html {
+    background: var(--color-bg); /* avoids a flash before <body> paints */
+  }
+  body {
+    background: var(--room-bg) fixed;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+  /* Titles in the elegant serif, tightened. */
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.005em;
+  }
+  /* Sapphire text-selection. */
+  ::selection { background: rgba(79,143,247,.3); }
+}
+
+/* ---- The carved board set (wraps the chessboard) ---- */
+.board-frame {
+  padding: clamp(9px, 2.4%, 17px);
+  border-radius: 16px;
+  background: linear-gradient(155deg, var(--frame-a), var(--frame-b));
+  box-shadow:
+    var(--elev-lift),
+    inset 0 2px 0 rgba(255,255,255,.16),
+    inset 0 -3px 7px rgba(0,0,0,.5),
+    0 0 0 1px rgba(0,0,0,.45);
+}
+.board-frame--mini {
+  padding: clamp(6px, 3%, 10px);
+  border-radius: 12px;
+}
+.board-inner {
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.4), 0 2px 8px rgba(0,0,0,.3);
+}
+
+/* A faint board-checker motif, tucked into a plate's corner (theme-aware). */
+.plate-motif {
+  position: absolute;
+  right: -26px;
+  bottom: -26px;
+  width: 116px;
+  height: 116px;
+  opacity: .06;
+  transform: rotate(8deg);
+  pointer-events: none;
+  background-image: linear-gradient(45deg, var(--fg) 25%, transparent 25%, transparent 50%, var(--fg) 50%, var(--fg) 75%, transparent 75%);
+  background-size: 26px 26px;
+}
+
+/* Orchestrated entrance: plates rise + settle on load (staggered inline). */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+.rise { animation: riseIn .5s cubic-bezier(.2,.7,.3,1) both; }
+
+/* A win/correct moment landing with weight: a quick scale-in pop. */
+@keyframes popIn {
+  from { opacity: 0; transform: scale(.94); }
+  to { opacity: 1; transform: none; }
+}
+.pop { animation: popIn .34s cubic-bezier(.2,.8,.3,1) both; }
+
+/* A faint top sheen for placard-style cards (used via .placard-sheen). */
+.placard-sheen { position: relative; }
+.placard-sheen::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 40%;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), transparent);
+  pointer-events: none;
+}
+
+/* ---- Animations (kid celebrations & board cues) ---- */
+
+@keyframes kidConfettiFall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(720deg); opacity: 0; }
+}
+
+@keyframes kidBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12%); }
+}
+
+@keyframes kidDanger {
+  0%, 100% {
+    background-color: rgba(239, 68, 68, 0.35);
+    box-shadow: inset 0 0 0 4px rgba(220, 38, 38, 0.9);
+  }
+  50% {
+    background-color: rgba(239, 68, 68, 0.75);
+    box-shadow: inset 0 0 0 6px rgba(185, 28, 28, 1);
+  }
+}
+
+@keyframes kidToast {
+  0% { opacity: 0; transform: translateY(-1rem); }
+  12%, 82% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-1rem); }
+}
+
+/* A soft sapphire pulse for a freshly-revealed correct answer / win flourish. */
+@keyframes accentPulse {
+  0% { box-shadow: 0 0 0 0 rgba(79,143,247,.5); }
+  70% { box-shadow: 0 0 0 12px rgba(79,143,247,0); }
+  100% { box-shadow: 0 0 0 0 rgba(79,143,247,0); }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   The Arcade — a self-contained neon "cabinet" look. All colors live in --arc-*
+   vars scoped to .arcade-cabinet, so this never affects the Midnight Club theme.
+   ────────────────────────────────────────────────────────────────────────── */
+.arcade-cabinet {
+  --arc-bg: #06080f;
+  --arc-panel: #0c1322;
+  --arc-edge: #1c2a45;
+  --arc-cyan: #22e3ff;
+  --arc-magenta: #ff45b5;
+  --arc-lime: #a6ff3d;
+  --arc-amber: #ffd23d;
+  --arc-text: #dce8ff;
+  --arc-dim: #7387ac;
+  color: var(--arc-text);
+}
+/* CRT scanline overlay — put on a position:relative container. */
+.arcade-scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.22) 0px,
+    rgba(0, 0, 0, 0.22) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  opacity: 0.5;
+}
+@keyframes arcadeShake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-5px, 2px); }
+  40% { transform: translate(5px, -2px); }
+  60% { transform: translate(-3px, -2px); }
+  80% { transform: translate(3px, 2px); }
+}
+.arcade-shake { animation: arcadeShake 0.36s linear; }
+@keyframes neonPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+.arcade-pulse { animation: neonPulse 1.4s ease-in-out infinite; }
+@keyframes zapFlash {
+  0% { background-color: rgba(255, 69, 181, 0); }
+  30% { background-color: rgba(255, 69, 181, 0.6); }
+  100% { background-color: rgba(255, 69, 181, 0); }
+}
+.arcade-zap { animation: zapFlash 0.42s ease-out; }
+@keyframes arcadeWin {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.arcade-win { animation: arcadeWin 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.2); }
+/* Sliding pieces (player + oscillating enemies) glide between squares. */
+.arcade-token { transition: left 0.16s ease, top 0.16s ease; }
+@media (prefers-reduced-motion: reduce) { .arcade-token { transition: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+}

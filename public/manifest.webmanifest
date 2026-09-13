@@ -1,0 +1,12 @@
+{
+  "name": "OpeningLab",
+  "short_name": "OpeningLab",
+  "description": "Spar your opening against a bot that plays like your real opponents, with a coach at your side.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1424",
+  "theme_color": "#0b1424",
+  "icons": [{ "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
