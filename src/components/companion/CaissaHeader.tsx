@@ -8,6 +8,7 @@ import { useState } from "react";
 import { ArrowLeftIcon } from "@/components/icons";
 import { useSpeechSupported } from "@/lib/audio/useSpeechSupported";
 import { companionStore, useCompanionPrefs } from "@/lib/companion/prefs";
+import type { PlanStatus } from "@/lib/setup/plan";
 import { CaissaAvatar, type CaissaStatus } from "./CaissaAvatar";
 import { CompanionSettings } from "./CompanionSettings";
 
@@ -17,12 +18,15 @@ export function CaissaHeader({
   status,
   backHref,
   backLabel,
+  plan,
 }: {
   title: string;
   subtitle: string;
   status: CaissaStatus;
   backHref: string;
   backLabel: string;
+  /** Always-visible answer to "am I still playing this opening right?" */
+  plan?: PlanStatus;
 }) {
   const { voice } = useCompanionPrefs();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -37,7 +41,18 @@ export function CaissaHeader({
         <CaissaAvatar status={status} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate font-display text-base font-bold leading-tight">{title}</h1>
-          <div className="truncate text-xs text-ink-soft">{subtitle}</div>
+          <div className="truncate text-xs text-ink-soft">
+            {plan && (
+              <>
+                <span className={plan.state === "off_plan" ? "font-bold text-clay" : "font-bold text-sage"}>
+                  {plan.label}
+                  {plan.total ? ` ${plan.met}/${plan.total}` : ""}
+                </span>
+                <span aria-hidden> · </span>
+              </>
+            )}
+            {plan?.detail ? plan.detail : subtitle}
+          </div>
         </div>
         {canSpeak && (
           <button

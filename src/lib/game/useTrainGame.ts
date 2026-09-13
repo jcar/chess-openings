@@ -26,7 +26,7 @@ import { evaluate, type Evaluation } from "@/lib/coach/evalSource";
 import { describeMove, tagMove, type MoveInfo, type PlyRecord } from "@/lib/coach/features";
 import type { MoveTag } from "@/lib/coach/tags";
 import { explainBotMove, explainUserMove, firedIdeas, type CoachMessage } from "@/lib/coach/explain";
-import { setupProgress } from "@/lib/setup/progress";
+import { setupProgress, type SetupProgress } from "@/lib/setup/progress";
 import { newTracker, observe, type MomentumTracker } from "@/lib/adapt/inGame";
 import type { TrainEvent } from "@/lib/companion/events";
 import { thinkAbout, type ThinkAbout } from "@/lib/coach/prompt";
@@ -92,6 +92,8 @@ export interface GameOverInfo {
   plies: number;
   history: Ply[];
   bookEndedAt: number | null;
+  /** Where the opening setup ended up, for the post-game report. */
+  setup?: SetupProgress;
 }
 
 const START = new Chess().fen();
@@ -525,12 +527,12 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
   useEffect(() => {
     if (state.result && !reportedRef.current) {
       reportedRef.current = true;
-      const info = { result: state.result, takebacks: state.takebacks, hintsUsed: state.hintsUsed, momentum: state.momentum.momentum, plies: state.history.length, history: state.history, bookEndedAt: state.bookEndedAt };
+      const info = { result: state.result, takebacks: state.takebacks, hintsUsed: state.hintsUsed, momentum: state.momentum.momentum, plies: state.history.length, history: state.history, bookEndedAt: state.bookEndedAt, setup: setupProgress(state.fen, spec.setup, userColor, state.history) };
       onGameOverRef.current?.(info);
       emit({ t: "game_over", info });
     }
     if (!state.result) reportedRef.current = false;
-  }, [emit, state.result, state.takebacks, state.hintsUsed, state.momentum.momentum, state.history, state.bookEndedAt]);
+  }, [emit, spec.setup, userColor, state.fen, state.result, state.takebacks, state.hintsUsed, state.momentum.momentum, state.history, state.bookEndedAt]);
 
   const turn: Side = state.fen.split(" ")[1] === "w" ? "white" : "black";
   const userToMove = turn === userColor && !state.botThinking && !state.checking && !state.pendingPause && !state.awaitingContinue && !state.checkpoint && !state.result;

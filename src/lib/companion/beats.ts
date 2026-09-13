@@ -5,6 +5,8 @@ import type { OpeningSpec } from "@/content/spec";
 import type { CoachMessage } from "@/lib/coach/explain";
 import { describeRecurring, type MistakeEntry } from "@/lib/progress/mistakes";
 import type { Session } from "@/lib/progress/sessions";
+import { missingGoals } from "@/lib/setup/plan";
+import type { SetupProgress } from "@/lib/setup/progress";
 import { anticipate } from "./anticipate";
 import type { TrainEvent } from "./events";
 import { MAX_SPOKEN_WORDS, wordCount, type BeatKind, type CompanionLine, type Priority, type Tone } from "./types";
@@ -226,9 +228,12 @@ export function eventToLines(e: TrainEvent, ctx: BeatContext): CompanionLine[] {
       // "that's the end of the book", and he could not tell whether he had done
       // something wrong. Who left the book is the whole answer, so say it.
       const them = e.by === "them";
-      const text = them ? `${e.san} is off book. Nothing you did wrong.` : `${e.san} takes us off book.`;
+      // When THEY leave theory, the useful answer is almost always "that changes
+      // nothing" — below 1200 it happens in nearly every game. Concrete threats
+      // are caught separately by the threat scan, which speaks for itself.
+      const text = them ? `${e.san}. Doesn't change your plan.` : `${e.san} takes us off book.`;
       const why = them
-        ? `Your opponent played ${e.san}, which the book doesn't cover at this level. That's normal below 1200 — most games leave theory early. Keep playing your setup.`
+        ? `${e.san} isn't a move this book lists, which below 1200 is the norm rather than the exception. Your setup doesn't depend on what they choose: keep completing it.`
         : e.bookMove
           ? `The line here was ${e.bookMove}. ${e.san} isn't necessarily worse — it just isn't the move this book follows, so from here you're on your own.`
           : `From here you're past what the book covers.`;
@@ -240,7 +245,7 @@ export function eventToLines(e: TrainEvent, ctx: BeatContext): CompanionLine[] {
           kind: "book_end",
           text,
           more: `${why} ${plan}`,
-          priority: 1,
+          priority: them ? 2 : 1,
           tone: "book",
           dedupeKey: "book-boundary",
         }),
@@ -313,11 +318,13 @@ export function eventToLines(e: TrainEvent, ctx: BeatContext): CompanionLine[] {
     case "game_over": {
       const { info } = e;
       const text = info.result === "win" ? "That's the game. Nicely done." : info.result === "loss" ? "He got there first." : "Drawn.";
+      const report = info.setup ? setupReport(info.setup) : undefined;
+      const caveat = info.takebacks || info.hintsUsed ? "Not rated — you used take-backs or hints, which is what they're for." : undefined;
       return [
         caissa(e.info.history.length, {
           kind: "game_over",
           text,
-          more: info.takebacks || info.hintsUsed ? "Not rated — you used take-backs or hints, which is what they're for." : undefined,
+          more: [report, caveat].filter(Boolean).join(" ") || undefined,
           priority: 0,
           tone: info.result === "win" ? "praise" : "note",
           actions: [
@@ -356,4 +363,17 @@ function ordinal(n: number): string {
   if (n === 3) return "Third";
   if (n === 4) return "Fourth";
   return `${n}th`;
+}
+
+/** The post-game line that actually builds the habit: how much of the opening's
+ *  own setup you completed, and what you left out. */
+function setupReport(setup: SetupProgress): string {
+  if (!setup.total) return "";
+  const head = `You reached ${setup.met} of ${setup.total} setup goals.`;
+  const broken = setup.orderViolations[0];
+  const missing = missingGoals(setup);
+  const parts = [head];
+  if (broken) parts.push(`${broken.after} came before ${broken.before}, which is the one order rule here.`);
+  if (missing.length) parts.push(`Still outstanding: ${missing.slice(0, 3).join("; ")}.`);
+  return parts.join(" ");
 }

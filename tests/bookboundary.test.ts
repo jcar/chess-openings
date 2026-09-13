@@ -27,9 +27,9 @@ describe("leaving the book says who did it", () => {
     const [line] = eventToLines({ t: "book_ended", plyIndex: 4, by: "them", san: "c6" }, ctx);
     expect(line.kind).toBe("book_end");
     expect(line.text).toContain("c6");
-    expect(line.text).toMatch(/nothing you did/i);
+    expect(line.text).toMatch(/doesn't change your plan/i);
     expect(wordCount(line.text)).toBeLessThanOrEqual(MAX_SPOKEN_WORDS);
-    expect(line.more).toMatch(/opponent/i);
+    expect(line.more).toMatch(/norm rather than the exception/i);
   });
 
   it("names the move the line wanted when you go off book", () => {

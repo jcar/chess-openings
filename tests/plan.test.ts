@@ -1,0 +1,168 @@
+// "Am I still playing my opening correctly?" is a question about the opening's
+// own setup, not about whether the position sits in our baked tree.
+//
+// Jason played 1.d4 d5 2.Bf4 in the London and was told the book move was Nf3.
+// Bf4 before e3 is the one rule the London actually has, so he had played the
+// most important move in the system and was told he'd left the line.
+
+import { describe, expect, it } from "vitest";
+import { Chess } from "chess.js";
+import { getOpening } from "@/content";
+import { MergedBook } from "@/lib/book/merged";
+import { judge } from "@/lib/coach/classify";
+import { explainUserMove } from "@/lib/coach/explain";
+import { describeMove, tagMove, type PlyRecord } from "@/lib/coach/features";
+import { eventToLines, type BeatContext } from "@/lib/companion/beats";
+import { missingGoals, planStatus } from "@/lib/setup/plan";
+import { setupProgress } from "@/lib/setup/progress";
+
+const london = getOpening("london-system")!;
+const book = new MergedBook(london, null, null);
+
+function ctxFor(line: string, san: string, cpBefore = 0, cpAfterOpp = 0) {
+  const g = new Chess();
+  const history: PlyRecord[] = [];
+  for (const s of line.trim().split(/\s+/).filter(Boolean)) {
+    const m = g.move(s);
+    history.push({ san: m.san, uci: m.from + m.to, color: m.color === "w" ? "white" : "black" });
+  }
+  const fenBefore = g.fen();
+  const m = g.move(san);
+  const uci = m.from + m.to;
+  const move = describeMove(fenBefore, uci)!;
+  const fenAfter = g.fen();
+  return {
+    spec: london,
+    book,
+    fenBefore,
+    fenAfter,
+    move,
+    history,
+    tags: tagMove(fenBefore, fenAfter, move, history),
+    judgement: judge(cpBefore, cpAfterOpp, false),
+    bestUci: null,
+    setupBefore: setupProgress(fenBefore, london.setup, "white", history),
+    setupAfter: setupProgress(fenAfter, london.setup, "white", [...history, move]),
+    verbosity: "normal" as const,
+    inOpening: true,
+  };
+}
+
+const progressAfter = (line: string) => {
+  const g = new Chess();
+  const h: PlyRecord[] = [];
+  for (const s of line.trim().split(/\s+/).filter(Boolean)) {
+    const m = g.move(s);
+    h.push({ san: m.san, uci: m.from + m.to, color: m.color === "w" ? "white" : "black" });
+  }
+  return setupProgress(g.fen(), london.setup, "white", h);
+};
+
+describe("the setup outranks the move list", () => {
+  it("praises Bf4 as on plan even though the line starts with Nf3", () => {
+    const msg = explainUserMove(ctxFor("d4 d5", "Bf4"));
+    expect(msg.kind).toBe("praise");
+    expect(msg.source).toBe("setup");
+    expect(msg.headline).toContain("On plan");
+    // The move order is mentioned, but as information rather than a correction.
+    expect(msg.lookFor).toContain("Nf3");
+    expect(msg.pause).toBe(false);
+  });
+
+  it("still praises the authored move itself", () => {
+    const msg = explainUserMove(ctxFor("d4 d5", "Nf3"));
+    expect(msg.kind).toBe("praise");
+  });
+
+  it("flags e3 before Bf4, which is the rule that matters", () => {
+    const msg = explainUserMove(ctxFor("d4 d5", "e3"));
+    expect(msg.kind).toBe("warn");
+    expect(msg.source).toBe("setup");
+    expect(msg.headline).toMatch(/e3 before Bf4/);
+  });
+
+  it("an authored mistake still wins over any setup praise", () => {
+    const italian = getOpening("italian-game")!;
+    const g = new Chess();
+    for (const s of "e4 e5 Nf3 Nc6 Bc4 Bc5".split(" ")) g.move(s);
+    const fenBefore = g.fen();
+    const m = g.move("Ng5");
+    const move = describeMove(fenBefore, m.from + m.to)!;
+    const msg = explainUserMove({
+      ...ctxFor("d4 d5", "Nf3"),
+      spec: italian,
+      book: new MergedBook(italian, null, null),
+      fenBefore,
+      fenAfter: g.fen(),
+      move,
+      history: [],
+      tags: [],
+      setupBefore: setupProgress(fenBefore, italian.setup, "white", []),
+      setupAfter: setupProgress(g.fen(), italian.setup, "white", []),
+    });
+    expect(msg.source).toBe("authored");
+    expect(msg.kind).toBe("warn");
+  });
+});
+
+describe("the persistent plan indicator", () => {
+  it("reads on plan through a correct move order", () => {
+    expect(planStatus(progressAfter("d4 d5 Bf4")).state).toBe("on_plan");
+    expect(planStatus(progressAfter("d4 d5 Nf3")).state).toBe("on_plan");
+  });
+
+  it("reads off plan, with the reason, once the order rule breaks", () => {
+    const p = planStatus(progressAfter("d4 d5 e3"));
+    expect(p.state).toBe("off_plan");
+    expect(p.detail).toBe("e3 came before Bf4");
+  });
+
+  it("counts goals so the header can show progress", () => {
+    const p = planStatus(progressAfter("d4 d5 Bf4"));
+    expect(p.total).toBe(8);
+    expect(p.met).toBe(2);
+  });
+});
+
+describe("the opponent leaving theory is not an event about you", () => {
+  const ctx: BeatContext = { spec: london, recurring: [], lastSession: null };
+
+  it("says it changes nothing, and says it quietly", () => {
+    const [line] = eventToLines({ t: "book_ended", plyIndex: 4, by: "them", san: "c6" }, ctx);
+    expect(line.text).toMatch(/doesn't change your plan/i);
+    expect(line.priority).toBe(2); // colour: suppressed entirely at Quiet and Normal
+  });
+
+  it("your own departure is still worth hearing", () => {
+    const [line] = eventToLines({ t: "book_ended", plyIndex: 3, by: "you", san: "Bf4", bookMove: "Nf3" }, ctx);
+    expect(line.priority).toBe(1);
+  });
+});
+
+describe("the post-game setup report", () => {
+  const ctx: BeatContext = { spec: london, recurring: [], lastSession: null };
+  const gameOver = (line: string) => {
+    const setup = progressAfter(line);
+    const [l] = eventToLines(
+      { t: "game_over", info: { result: "win", takebacks: 0, hintsUsed: 0, momentum: 0, plies: 10, history: [], bookEndedAt: null, setup } },
+      ctx,
+    );
+    return l;
+  };
+
+  it("reports goals reached and what was left out", () => {
+    const line = gameOver("d4 d5 Bf4 c6 e3 Nf6 Nf3 e6 Bd3 Bd6");
+    expect(line.more).toMatch(/reached \d of 8 setup goals/);
+    expect(line.more).toMatch(/outstanding/i);
+  });
+
+  it("names the broken order rule when there was one", () => {
+    // Note the line can't even reach Bf4: the e3-pawn physically blocks the
+    // c1-h6 diagonal, which is the whole reason the rule exists.
+    expect(gameOver("d4 d5 e3 Nf6 Nf3 e6 Bd3").more).toMatch(/e3 came before Bf4/);
+  });
+
+  it("lists what never arrived", () => {
+    expect(missingGoals(progressAfter("d4 d5 Bf4"))).toContain("never castled");
+  });
+});

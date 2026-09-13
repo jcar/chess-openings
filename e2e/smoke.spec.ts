@@ -286,4 +286,19 @@ test("an offbeat opponent move says it is not your fault, and the book resumes",
   // 2.Bf4 is now authored, so the book does NOT end where it used to.
   await expect(page.locator('[data-beat="book_end"]')).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Hint" })).toBeEnabled();
+
+  // And the header answers "am I playing this right?" without being asked.
+  await expect(page.getByText(/on plan 2\/8/)).toBeVisible();
+});
+
+test("the header says off plan, and why, when the order rule breaks", async ({ page }) => {
+  await useScriptedEngine(page, ["d7d5", "g8f6"]);
+  await page.goto("/train/london-system/");
+  await move(page, "d2", "d4");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
+
+  await expect(page.getByText(/on plan/)).toBeVisible();
+  await move(page, "e2", "e3"); // e3 before Bf4: the one rule the London has
+  await expect(page.getByText(/off plan/)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/e3 came before Bf4/)).toBeVisible();
 });

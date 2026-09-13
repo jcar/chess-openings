@@ -60,12 +60,15 @@ describe("explainUserMove layering", () => {
     expect(msg.source).toBe("authored");
     expect(msg.body).toMatch(/Prepare d4/);
   });
-  it("a fine alternative to the book move is a note, not a warning", () => {
-    // 4.d3 instead of 4.c3: engine says fine, no negative tag.
+  it("praises a different move order that still builds the setup", () => {
+    // 4.d3 instead of 4.c3. d3 is one of the Italian's own pawn targets, so it
+    // is on plan even though the authored line reaches it via c3 first. The
+    // book's order is offered as information, not as a correction.
     const msg = explainUserMove(userCtx("e4 e5 Nf3 Nc6 Bc4 Bc5", "d3", 30, -28));
-    expect(msg.kind).toBe("note");
+    expect(msg.kind).toBe("praise");
+    expect(msg.source).toBe("setup");
     expect(msg.pause).toBe(false);
-    expect(msg.body).toMatch(/book move here is c3/);
+    expect(msg.lookFor).toMatch(/c3/);
   });
   it("tag template explains an unannotated blunder", () => {
     // 1.e4 d5 2.Qh5 — not an Italian position, so no annotation; early queen + engine says bad-ish.

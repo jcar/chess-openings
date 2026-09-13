@@ -119,6 +119,39 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
   if (a?.yourMove && a.yourMove.san === move.san) {
     return { kind: "praise", headline: `${move.san}. Book move.`, body: trim(a.yourMove.why), severity: sev, source: "authored", pause: false };
   }
+  // The opening's OWN rule outranks its move list. Playing e3 before Bf4 is a
+  // real London error; playing Bf4 before Nf3 is not, even though the authored
+  // line happens to start with Nf3. Checking the order rule first is what stops
+  // a correct transposition being reported as a deviation.
+  const violationNow = ctx.setupAfter.orderViolations.find((v) => !ctx.setupBefore.orderViolations.some((o) => o.before === v.before && o.after === v.after));
+  if (violationNow) {
+    return {
+      kind: "warn",
+      headline: `${violationNow.after} before ${violationNow.before} — wrong order.`,
+      body: violationNow.why,
+      severity: sev,
+      source: "setup",
+      pause: bad,
+      bestSan,
+    };
+  }
+
+  // A move that completes one of the setup's own goals is on plan, whatever move
+  // order the book was written in.
+  if (!bad && !negative && ctx.setupAfter.met > ctx.setupBefore.met) {
+    const goal = ctx.setupAfter.pieces.find((g) => g.done && !ctx.setupBefore.pieces.find((q) => q.piece === g.piece && q.squares.join() === g.squares.join())?.done);
+    const why = goal ? spec.setup.pieces.find((g) => g.piece === goal.piece && g.squares.join() === goal.squares.join())?.why : undefined;
+    return {
+      kind: "praise",
+      headline: `${move.san}. On plan.`,
+      body: trim(why ?? "Another piece of the structure in place."),
+      lookFor: a?.yourMove && a.yourMove.san !== move.san ? `The book's move order here is ${a.yourMove.san}, but this reaches the same setup.` : undefined,
+      severity: sev,
+      source: "setup",
+      pause: false,
+    };
+  }
+
   if (a?.yourMove && a.yourMove.san !== move.san) {
     if (!bad && !negative) {
       return {
@@ -142,20 +175,6 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
       source: "authored",
       pause: bad,
       tag: negative ?? undefined,
-    };
-  }
-
-  // 2) Setup order rule just violated.
-  const newViolation = ctx.setupAfter.orderViolations.find((v) => !ctx.setupBefore.orderViolations.some((o) => o.before === v.before && o.after === v.after));
-  if (newViolation) {
-    return {
-      kind: "warn",
-      headline: `${newViolation.after} before ${newViolation.before} — wrong order.`,
-      body: newViolation.why,
-      severity: sev,
-      source: "setup",
-      pause: bad,
-      bestSan,
     };
   }
 

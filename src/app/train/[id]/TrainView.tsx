@@ -22,6 +22,7 @@ import type { LineAction } from "@/lib/companion/types";
 import { recordMistake } from "@/lib/progress/mistakes";
 import { finishGame } from "@/lib/progress/recordGame";
 import { setupProgress } from "@/lib/setup/progress";
+import { planStatus } from "@/lib/setup/plan";
 import { useTrainGame, type GameOverInfo } from "@/lib/game/useTrainGame";
 
 export function TrainView({ spec }: { spec: OpeningSpec }) {
@@ -110,14 +111,25 @@ export function TrainView({ spec }: { spec: OpeningSpec }) {
     }
   };
 
-  const phase = state.result ? "game over" : state.phase === "opening" ? "opening" : "middlegame";
+  // What's on screen is "am I playing my opening correctly", not "is this
+  // position in our dataset". The second is about our coverage, not his chess.
+  const plan = planStatus(setup);
   const subtitle = reviewing
     ? "Reviewing · tap a move to move around"
-    : `Move ${moveNo} · ${phase} · vs ${personaFor(difficulty.botElo)}${setup.total ? ` · setup ${setup.met}/${setup.total}` : ""}`;
+    : state.result
+      ? `Game over · setup ${plan.met}/${plan.total}`
+      : `Move ${moveNo} · vs ${personaFor(difficulty.botElo)}`;
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-lg flex-col">
-      <CaissaHeader title={spec.name} subtitle={subtitle} status={status} backHref="/" backLabel="Back to openings" />
+      <CaissaHeader
+        title={spec.name}
+        subtitle={subtitle}
+        status={status}
+        backHref="/"
+        backLabel="Back to openings"
+        plan={reviewing || state.result ? undefined : plan}
+      />
 
       <div className="shrink-0">
         <EvalStrip userWinPct={state.userWinPct} userIsWhite={userColor === "white"} delta={delta} />
