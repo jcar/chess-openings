@@ -40,16 +40,14 @@ export type BeatKind =
   // structure
   | "orient"
   | "hint"
-  | "checkpoint_q"
-  | "checkpoint_result"
   | "game_over";
 
-export type ActionKind = "takeback" | "playon" | "continue" | "answer" | "jump" | "review" | "newgame";
+export type ActionKind = "takeback" | "playon" | "continue" | "jump" | "review" | "newgame";
 
 export interface LineAction {
   kind: ActionKind;
   label: string;
-  /** Answer index for a checkpoint, or ply index for a jump. */
+  /** Ply index for a jump. */
   index?: number;
 }
 

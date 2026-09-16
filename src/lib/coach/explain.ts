@@ -104,10 +104,14 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
   // 1) Authored knowledge about exactly this move.
   const authoredMistake = a?.mistakes?.find((m) => m.san === move.san);
   if (authoredMistake) {
+    // These nodes used to interrupt with a multiple-choice question BEFORE you
+    // moved. The question is gone; its explanation is better spent here, on the
+    // move you actually played.
+    const extra = a?.checkpoint?.explanation;
     return {
       kind: "warn",
       headline: `${move.san}? The book warns against that.`,
-      body: authoredMistake.why,
+      body: extra ? `${trim(authoredMistake.why)} ${extra}` : authoredMistake.why,
       bestSan: a?.yourMove?.san ?? bestSan,
       lookFor: a?.yourMove ? `The book move is ${a.yourMove.san}.` : undefined,
       severity: sev,

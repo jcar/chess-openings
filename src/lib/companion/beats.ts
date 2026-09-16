@@ -257,29 +257,6 @@ export function eventToLines(e: TrainEvent, ctx: BeatContext): CompanionLine[] {
         }),
       ];
 
-    case "checkpoint":
-      return [
-        caissa(e.plyIndex, {
-          kind: "checkpoint_q",
-          text: e.checkpoint.question,
-          priority: 0,
-          tone: "note",
-          silent: true,
-          actions: e.checkpoint.options.map((label, index) => ({ kind: "answer" as const, label, index })),
-        }),
-      ];
-
-    case "checkpoint_answered":
-      return [
-        caissa(e.plyIndex, {
-          kind: "checkpoint_result",
-          text: e.correct ? "That's the one." : "Not quite.",
-          more: e.explanation,
-          priority: 0,
-          tone: e.correct ? "praise" : "warn",
-        }),
-      ];
-
     case "hint":
       return [
         caissa(e.plyIndex, {

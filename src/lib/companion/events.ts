@@ -3,7 +3,7 @@
 // Mode's updater replay can't double-fire them, and the transient facts that make
 // her lines good (judgement, tags, loss, whether a pause was offered) survive.
 
-import type { Checkpoint, IdeaCard } from "@/content/spec";
+import type { IdeaCard } from "@/content/spec";
 import type { CoachMessage } from "@/lib/coach/explain";
 import type { MoveJudgement } from "@/lib/coach/classify";
 import type { MoveTag } from "@/lib/coach/tags";
@@ -39,8 +39,6 @@ export type TrainEvent =
    *  between "you did something wrong" and "they did something unusual". */
   | { t: "book_ended"; plyIndex: number; by: "you" | "them"; san: string; bookMove?: string }
   | { t: "book_resumed"; plyIndex: number }
-  | { t: "checkpoint"; plyIndex: number; checkpoint: Checkpoint }
-  | { t: "checkpoint_answered"; plyIndex: number; correct: boolean; explanation: string }
   | { t: "hint"; plyIndex: number; text: string; from?: string; to?: string }
   | { t: "pickup"; plyIndex: number; square: string; fen: string }
   | { t: "truncate"; toPlyIndex: number }

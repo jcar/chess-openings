@@ -52,7 +52,7 @@ export function TrainView({ spec }: { spec: OpeningSpec }) {
     [spec.id],
   );
 
-  const { state, book, userColor, userToMove, playUserMove, playOn, takeBack, reset, answerCheckpoint, showHint, legalDestinations } = useTrainGame(
+  const { state, book, userColor, userToMove, playUserMove, playOn, takeBack, reset, showHint, legalDestinations } = useTrainGame(
     spec,
     difficulty,
     { onGameOver, onJudged, onEvent: companion.say },
@@ -105,9 +105,6 @@ export function TrainView({ spec }: { spec: OpeningSpec }) {
       case "playon":
       case "continue":
         playOn();
-        break;
-      case "answer":
-        if (a.index !== undefined) answerCheckpoint(a.index);
         break;
       case "jump":
         // Tapping the move you're already looking at returns you to the game.

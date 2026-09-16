@@ -411,10 +411,9 @@ test("home offers the opening you last played", async ({ page }) => {
   await expect(resume).toContainText(/you won/);
 });
 
-test("a checkpoint asks its question before it locks the board", async ({ page }) => {
-  // 1.d4 d5 2.Nf3 Nf6 puts the London's move-order checkpoint on the board with
-  // the player on plan 2/8 and to move. The checkpoint blocks input, so if the
-  // question is never asked the game is simply stuck with nothing to tap.
+test("a book mistake teaches instead of quizzing you first", async ({ page }) => {
+  // 1.d4 d5 2.Nf3 Nf6 used to interrupt with a multiple-choice question before
+  // you could move. The question is gone; play straight through it.
   await useScriptedEngine(page, ["d7d5", "g8f6"]);
   await page.goto("/train/london-system/");
   await move(page, "d2", "d4");
@@ -422,20 +421,31 @@ test("a checkpoint asks its question before it locks the board", async ({ page }
   await move(page, "g1", "f3");
   await expect(page.getByRole("button", { name: "Their move Nf6" })).toBeVisible({ timeout: 10_000 });
 
-  const question = page.locator('[data-beat="checkpoint_q"]');
-  await expect(question).toBeVisible({ timeout: 10_000 });
-  await expect(question).toContainText(/move-order rule/i);
+  // Nothing blocks the board, and nothing asks you anything.
+  await expect(page.getByText(/What is the one move-order rule/)).toHaveCount(0);
+  await expect(page.locator('[data-testid="stop-down"]')).toHaveCount(0);
 
-  // Blocked until answered, which is intended — but now it says so.
-  await move(page, "c1", "f4");
-  await expect(page.locator('[data-square="f4"] [data-piece]')).toHaveCount(0);
+  // Play the move the quiz used to be about, and now it teaches.
+  await move(page, "e2", "e3");
+  const stop = page.locator('[data-testid="stop-down"]');
+  await expect(stop).toBeVisible({ timeout: 10_000 });
+  await expect(stop).toContainText(/bishop/i);
+});
 
-  await question.getByRole("button", { name: /Bishop to f4 before e3/ }).click();
-  await expect(page.locator('[data-beat="checkpoint_result"]')).toBeVisible({ timeout: 10_000 });
+test("a book mistake carries the explanation the quiz used to hold", async ({ page }) => {
+  await useScriptedEngine(page, ["e7e5", "b8c6", "f8c5"]);
+  await page.goto("/train/italian-game/");
+  await move(page, "e2", "e4");
+  await expect(page.getByRole("button", { name: "Their move e5" })).toBeVisible({ timeout: 10_000 });
+  await move(page, "g1", "f3");
+  await expect(page.getByRole("button", { name: "Their move Nc6" })).toBeVisible({ timeout: 10_000 });
+  await move(page, "f1", "c4");
+  await expect(page.getByRole("button", { name: "Their move Bc5" })).toBeVisible({ timeout: 10_000 });
 
-  // And the board is live again.
-  await move(page, "c1", "f4");
-  await expect(page.locator('[data-square="f4"] [data-piece]')).toHaveCount(1, { timeout: 10_000 });
+  await move(page, "f3", "g5");
+  const stop = page.locator('[data-testid="stop-down"]');
+  await expect(stop).toBeVisible({ timeout: 10_000 });
+  await expect(stop).toContainText(/Ng5/);
 });
 
 test("the fixed bottom bar never covers page content", async ({ page }) => {
@@ -456,27 +466,6 @@ test("the fixed bottom bar never covers page content", async ({ page }) => {
   }
 });
 
-test("a question is readable from its first word", async ({ page }) => {
-  await useScriptedEngine(page, ["d7d5", "g8f6"]);
-  await page.goto("/train/london-system/");
-  await move(page, "d2", "d4");
-  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
-  await move(page, "g1", "f3");
-
-  const q = page.locator('[data-beat="checkpoint_q"]');
-  await expect(q).toBeVisible({ timeout: 10_000 });
-  const stream = await page.locator('[data-testid="companion-stream"]').boundingBox();
-  const box = await q.boundingBox();
-  // The top of the question sits inside the panel, not scrolled off above it.
-  expect(box!.y).toBeGreaterThanOrEqual(stream!.y - 1);
-
-  // And three sentence-length answers stack rather than sharing a row.
-  const opts = q.getByRole("button");
-  await expect(opts).toHaveCount(3);
-  const a = await opts.nth(0).boundingBox();
-  const b = await opts.nth(1).boundingBox();
-  expect(b!.y).toBeGreaterThan(a!.y + a!.height - 1);
-});
 
 test("the win bar is visible in the light theme", async ({ page }) => {
   await page.addInitScript(() => window.localStorage.setItem("openinglab:theme", "light"));

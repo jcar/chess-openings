@@ -13,12 +13,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess, type Square } from "chess.js";
-import type { Checkpoint, IdeaCard, OpeningSpec, Side } from "@/content/spec";
+import type { IdeaCard, OpeningSpec, Side } from "@/content/spec";
 import { MergedBook } from "@/lib/book/merged";
 import { loadExplorer, type ExplorerTree } from "@/lib/book/explorer";
 import { loadEvals, type EvalTable } from "@/lib/book/evals";
 import { bakedLoss } from "@/lib/book/evals";
-import { epd, type EPD } from "@/lib/book/key";
+import { epd } from "@/lib/book/key";
 import { chooseBotMove, type BotChoice, type Difficulty } from "@/lib/bot/policy";
 import { getEngine, type EngineLike } from "@/lib/chess/stockfish";
 import { judge, winPct, type MoveJudgement } from "@/lib/coach/classify";
@@ -71,9 +71,6 @@ export interface TrainState {
   /** Step pacing: the reply waits until you tap Continue. */
   awaitingContinue: boolean;
   /** A plan question the user must answer before moving. */
-  checkpoint: Checkpoint | null;
-  /** Result of the last answered checkpoint (to show the explanation). */
-  checkpointResult: { correct: boolean; explanation: string } | null;
   /** The user's win % after the last evaluated position (0–100). */
   userWinPct: number | null;
   /** Best move in the current position (for hints), when known. */
@@ -137,8 +134,6 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
     pendingPause: false,
     yourMoveCoach: null,
     awaitingContinue: false,
-    checkpoint: null,
-    checkpointResult: null,
     userWinPct: null,
     hintUci: null,
     hintShown: false,
@@ -157,7 +152,6 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
   const emit = useCallback((e: TrainEvent) => onEventRef.current?.(e), []);
   const gameRef = useRef(new Chess());
   const seq = useRef(0); // invalidates in-flight async work after takeback/reset
-  const answered = useRef(new Set<EPD>());
   const currentEval = useRef<Evaluation | null>(null); // eval of the position the user is looking at
 
   useEffect(() => {
@@ -200,14 +194,6 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
   const promptFor = (fen: string, history: Ply[], leftBook: boolean, ideas: IdeaCard[]): ThinkAbout =>
     thinkAbout({ spec, book, fen, setup: setupProgress(fen, spec.setup, userColor, history), leftBook, firedIdeas: ideas });
 
-  const maybeCheckpoint = (g: Chess): Checkpoint | null => {
-    if (sideOf(g) !== userColor) return null;
-    const key = epd(g.fen());
-    const cp = spec.annotations[key]?.checkpoint;
-    if (cp && !answered.current.has(key)) return cp;
-    return null;
-  };
-
   const botMove = useCallback(
     async (g: Chess, history: Ply[], mySeq: number) => {
       if (g.isGameOver() || sideOf(g) === userColor) return;
@@ -244,7 +230,6 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
       const ideas = firedIdeas(spec, fenAfter, info, tags, wasInBook && !nowInBook);
       let botCoachForEvent: CoachMessage | null = null;
       let thinkForEvent: ThinkAbout | null = null;
-      const checkpointNow = result ? null : maybeCheckpoint(g);
       setState((s) => {
         // Not sticky: a repertoire like the London transposes constantly, and one
         // offbeat sideline used to end the coaching for the rest of the game.
@@ -267,18 +252,12 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
           ideas,
           coach: botCoach,
           think: result ? null : promptFor(fenAfter, newHistory, leftBook, ideas),
-          checkpoint: checkpointNow,
-          checkpointResult: null,
           hintUci: null,
           hintShown: false,
         };
       });
 
       emit({ t: "bot_move", plyIndex: newHistory.length, ply, coach: botCoachForEvent, tags, ideas, think: thinkForEvent, fenAfter });
-      // A checkpoint blocks the board until it is answered, so it MUST be asked.
-      // Storing it without emitting leaves the player unable to move with nothing
-      // on screen explaining why — which is what the London did at move three.
-      if (checkpointNow) emit({ t: "checkpoint", plyIndex: newHistory.length, checkpoint: checkpointNow });
       if (wasInBook && !nowInBook) emit({ t: "book_ended", plyIndex: newHistory.length, by: "them", san: info.san });
       if (!wasInBook && nowInBook) emit({ t: "book_resumed", plyIndex: newHistory.length });
 
@@ -313,9 +292,7 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
       if (sideOf(g) !== userColor) void botMove(g, [], mySeq);
       else {
         void prefetch(g, mySeq);
-        const cp = maybeCheckpoint(g);
-        setState((s) => ({ ...s, checkpoint: cp, think: promptFor(g.fen(), [], false, []) }));
-        if (cp) emit({ t: "checkpoint", plyIndex: 0, checkpoint: cp });
+        setState((s) => ({ ...s, think: promptFor(g.fen(), [], false, []) }));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -325,7 +302,7 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
   const playUserMove = useCallback(
     (from: string, to: string, promotion?: string): boolean => {
       const g = gameRef.current;
-      if (g.isGameOver() || sideOf(g) !== userColor || state.botThinking || state.checking || state.pendingPause || state.awaitingContinue || state.checkpoint) return false;
+      if (g.isGameOver() || sideOf(g) !== userColor || state.botThinking || state.checking || state.pendingPause || state.awaitingContinue) return false;
       const legal = g.moves({ verbose: true }).find((m) => m.from === from && m.to === to);
       if (!legal) return false;
       const promo = legal.promotion ? promotion ?? "q" : undefined;
@@ -366,7 +343,6 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
           hintUci: null,
           hintShown: false,
           think: null,
-          checkpointResult: null,
         };
       });
       emit({ t: "user_move", plyIndex: history.length, ply, tags });
@@ -435,7 +411,7 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
       return true;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [book, botMove, difficulty.verbosity, pace, spec, state.botThinking, state.checking, state.checkpoint, state.history, state.leftBook, state.bookEndedAt, state.pendingPause, userColor],
+    [book, botMove, difficulty.verbosity, pace, spec, state.botThinking, state.checking, state.history, state.leftBook, state.bookEndedAt, state.pendingPause, userColor],
   );
 
   /** After a pause: accept the flagged move and let the bot reply. */
@@ -476,7 +452,6 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
       takebacks: s.takebacks + 1,
       coach: s.coach && s.coach.pause ? { ...s.coach, pause: false, kind: "note", headline: `Try again — not ${history.length ? "" : ""}${s.coach.bestSan ? `${s.coach.bestSan}?` : "that"}`.trim() } : null,
       ideas: [],
-      checkpoint: null,
       hintUci: null,
       hintShown: false,
       think: promptFor(g.fen(), history, s.leftBook, []),
@@ -490,7 +465,6 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
     const mySeq = ++seq.current;
     const g = new Chess();
     gameRef.current = g;
-    answered.current = new Set();
     currentEval.current = null;
     engine()?.abortAnalysis();
     setState({ ...initial(), dataReady });
@@ -499,24 +473,10 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
     if (sideOf(g) !== userColor) void botMove(g, [], mySeq);
     else {
       void prefetch(g, mySeq);
-      const cp = maybeCheckpoint(g);
-      setState((s) => ({ ...s, checkpoint: cp, think: promptFor(g.fen(), [], false, []) }));
-      if (cp) emit({ t: "checkpoint", plyIndex: 0, checkpoint: cp });
+      setState((s) => ({ ...s, think: promptFor(g.fen(), [], false, []) }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [botMove, dataReady, prefetch, userColor]);
-
-  const answerCheckpoint = useCallback(
-    (index: number) => {
-      const cp = state.checkpoint;
-      if (!cp) return;
-      answered.current.add(epd(gameRef.current.fen()));
-      const correct = index === cp.correctIndex;
-      setState((s) => ({ ...s, checkpoint: null, checkpointResult: { correct, explanation: cp.explanation } }));
-      emit({ t: "checkpoint_answered", plyIndex: state.history.length, correct, explanation: cp.explanation });
-    },
-    [emit, state.checkpoint, state.history.length],
-  );
 
   /** Show the move and why. You asked, so you get the answer. */
   const showHint = useCallback(() => {
@@ -544,7 +504,7 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
   }, [emit, spec.setup, userColor, state.fen, state.result, state.takebacks, state.hintsUsed, state.momentum.momentum, state.history, state.bookEndedAt]);
 
   const turn: Side = state.fen.split(" ")[1] === "w" ? "white" : "black";
-  const userToMove = turn === userColor && !state.botThinking && !state.checking && !state.pendingPause && !state.awaitingContinue && !state.checkpoint && !state.result;
+  const userToMove = turn === userColor && !state.botThinking && !state.checking && !state.pendingPause && !state.awaitingContinue && !state.result;
 
   return {
     state: { ...state, dataReady },
@@ -555,7 +515,6 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
     playOn,
     takeBack,
     reset,
-    answerCheckpoint,
     showHint,
     legalDestinations,
   };
