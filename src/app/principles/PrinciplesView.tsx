@@ -11,6 +11,8 @@ import { EvalStrip } from "@/components/board/EvalStrip";
 import { ScoreBoard } from "@/components/ScoreBoard";
 import { CaissaHeader } from "@/components/companion/CaissaHeader";
 import { CompanionStream } from "@/components/companion/CompanionStream";
+import { StopDown } from "@/components/companion/StopDown";
+import { lessonDeco } from "@/lib/coach/lesson";
 import type { CaissaStatus } from "@/components/companion/CaissaAvatar";
 import { estimateFor, useRating } from "@/lib/adapt/rating";
 import { difficultyFor, personaFor } from "@/lib/adapt/strength";
@@ -21,7 +23,7 @@ import { useCompanionPrefs } from "@/lib/companion/prefs";
 import { useSpeech } from "@/lib/companion/useSpeech";
 import type { LineAction } from "@/lib/companion/types";
 import { useTrainGame, type GameOverInfo } from "@/lib/game/useTrainGame";
-import { scoreBenchmarks } from "@/lib/principles/benchmarks";
+import { benchmarkStatus, scoreBenchmarks } from "@/lib/principles/benchmarks";
 import { recordMistake } from "@/lib/progress/mistakes";
 import { finishGame } from "@/lib/progress/recordGame";
 import { readyToGraduate, useSessions } from "@/lib/progress/sessions";
@@ -62,13 +64,23 @@ export function PrinciplesView() {
   const setup = useMemo(() => setupProgress(state.fen, spec.setup, userColor, state.history), [state.fen, spec.setup, userColor, state.history]);
   const graduate = readyToGraduate(sessions);
   const last = state.history[state.history.length - 1];
-  const moveNo = Math.floor(state.history.length / 2) + 1;
   const canTakeBack = state.history.some((p) => p.byUser) && !state.botThinking && !state.checking;
   const canHint = userToMove && !state.hintShown;
 
+  // Principles Mode lost its take-back when the pause bubble went away, so a
+  // flagged move stopped the board with nothing to tap. It gets the same
+  // stop-down the opening trainer uses.
+  const stopped = state.pendingPause && state.coach ? state.coach : null;
+  const lesson = stopped ? lessonDeco(state.fen, stopped, spec.side, last ? last.uci.slice(2, 4) : undefined) : null;
+
   const decorated = [...companion.lines].reverse().find((l) => l.deco && l.plyIndex >= state.history.length);
-  const arrows = decorated?.deco?.arrow ? [{ ...decorated.deco.arrow, color: decorated.deco.arrow.color ?? "rgba(79,143,247,0.85)" }] : [];
-  const highlight = decorated?.deco?.squares ?? [];
+  const arrows = lesson?.arrow
+    ? [{ ...lesson.arrow, color: "rgba(240,114,138,0.9)" }]
+    : decorated?.deco?.arrow
+      ? [{ ...decorated.deco.arrow, color: decorated.deco.arrow.color ?? "rgba(79,143,247,0.85)" }]
+      : [];
+  const highlight = lesson?.squares ?? decorated?.deco?.squares ?? [];
+  const lastUser = [...state.history].reverse().find((p) => p.byUser);
   const newest = companion.lines[companion.lines.length - 1];
   const status: CaissaStatus = state.checking || state.botThinking ? "thinking" : newest?.priority === 0 ? "alert" : "idle";
 
@@ -84,16 +96,18 @@ export function PrinciplesView() {
     else if (a.kind === "newgame") reset();
   };
 
-  const passed = results.filter((r) => r.pass).length;
+  const bench = benchmarkStatus(results);
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-lg flex-col">
       <CaissaHeader
         title="Principles Mode"
-        subtitle={`Move ${moveNo} · vs ${personaFor(difficulty.botElo)} · ${passed}/${results.length} benchmarks`}
+        subtitle={`vs ${personaFor(difficulty.botElo)}`}
         status={status}
         backHref="/"
-        backLabel="Back"
+        backLabel="Back to openings"
+        plan={state.result ? undefined : stopped ? { ...bench, detail: undefined } : bench}
+        onPlanTap={() => setShowScore(true)}
       />
 
       <div className="shrink-0">
@@ -114,11 +128,18 @@ export function PrinciplesView() {
           lastMove={last ? { from: last.uci.slice(0, 2), to: last.uci.slice(2, 4), mine: last.byUser } : undefined}
           arrows={arrows}
           highlightSquares={highlight}
+          // Shrink while a lesson or the scoreboard needs the room. Five
+          // benchmarks in a panel the size of one and a half was unreadable.
+          compact={!!stopped || showScore}
         />
       </div>
 
       <div className="flex shrink-0 items-center justify-between px-3 py-1">
-        <button type="button" onClick={() => setShowScore((v) => !v)} className="min-h-[36px] text-xs font-semibold text-primary-strong">
+        <button
+          type="button"
+          onClick={() => setShowScore((v) => !v)}
+          className="min-h-[44px] rounded-full border border-line px-3 text-xs font-bold text-primary-strong active:scale-[0.99]"
+        >
           {showScore ? "← Back to Caissa" : "See benchmarks →"}
         </button>
         {state.result && graduate && (
@@ -128,8 +149,10 @@ export function PrinciplesView() {
         )}
       </div>
 
-      {showScore ? (
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+      {stopped ? (
+        <StopDown message={stopped} san={lastUser?.san} onTakeBack={takeBack} onPlayOn={playOn} />
+      ) : showScore ? (
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-6">
           <ScoreBoard results={results} />
         </div>
       ) : (

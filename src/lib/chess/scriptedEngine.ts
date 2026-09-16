@@ -13,6 +13,9 @@ import type { Analysis, EngineLike, MultiAnalysis, MultiOptions } from "./stockf
 /** localStorage key holding a JSON array of canned UCI replies. Presence of the
  *  key (even an empty array) enables the scripted engine. */
 const FLAG_KEY = "openinglab:e2e:engine";
+/** Optional queue of centipawn scores, consumed one per evaluation, so a test can
+ *  make a move look like a blunder. Absent means a flat 0, as before. */
+const EVAL_KEY = "openinglab:e2e:evals";
 
 export function isScriptedEngineEnabled(): boolean {
   if (typeof window === "undefined") return false;
@@ -36,6 +39,18 @@ function readQueue(): string[] {
 }
 
 /** The lowest legal move by sorted UCI — deterministic, always legal. */
+function readEvalQueue(): number[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(EVAL_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map(Number).filter((n) => Number.isFinite(n)) : [];
+  } catch {
+    return [];
+  }
+}
+
 function firstLegalMove(fen: string): string | null {
   try {
     const g = new Chess(fen);
@@ -65,8 +80,10 @@ function isLegal(fen: string, uci: string): boolean {
 
 class ScriptedEngine implements EngineLike {
   private queue: string[];
-  constructor(queue: string[]) {
+  private evals: number[];
+  constructor(queue: string[], evals: number[] = []) {
     this.queue = [...queue];
+    this.evals = [...evals];
   }
 
   /** Next canned reply that's legal here; else a deterministic legal move. */
@@ -108,7 +125,8 @@ class ScriptedEngine implements EngineLike {
     } catch {
       /* unparseable fen — leave as cp 0 */
     }
-    return { cp: mate === null ? 0 : null, mate, bestMove: firstLegalMove(fen) };
+    const cp = this.evals.length ? this.evals.shift()! : 0;
+    return { cp: mate === null ? cp : null, mate, bestMove: firstLegalMove(fen) };
   }
 
   async analyzeMulti(fen: string, opts: MultiOptions = {}): Promise<MultiAnalysis> {
@@ -131,5 +149,5 @@ class ScriptedEngine implements EngineLike {
 }
 
 export function createScriptedEngine(): EngineLike {
-  return new ScriptedEngine(readQueue());
+  return new ScriptedEngine(readQueue(), readEvalQueue());
 }

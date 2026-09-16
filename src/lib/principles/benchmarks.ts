@@ -9,6 +9,10 @@ export interface BenchmarkResult {
   title: string;
   pass: boolean;
   detail: string;
+  /** Has this actually been decided yet? On move two, four of the five cannot
+   *  have been: you have not reached move ten or twelve. Counting them as passes
+   *  told the player 5 of 5 before anything had been tested. */
+  settled: boolean;
 }
 
 export interface GamePly extends PlyRecord {
@@ -63,35 +67,58 @@ export function scoreBenchmarks(history: GamePly[], side: Side): BenchmarkResult
       id: "centrePawnFirst",
       title: "Start in the centre",
       pass: centreFirst,
-      detail: first ? (centreFirst ? `${first} — good start.` : `${first} doesn't fight for the centre.`) : "pending",
+      settled: !!first,
+      detail: first ? (centreFirst ? `${first} — good start.` : `${first} doesn't fight for the centre.`) : "Waiting for your first move.",
     },
     {
       id: "queenQuietBefore10",
       title: "Queen stays home early",
       pass: earlyQueenMoves <= 1,
+      settled: earlyQueenMoves > 1 || mine.length >= 9,
       detail: earlyQueenMoves <= 1 ? `${earlyQueenMoves} queen move${earlyQueenMoves === 1 ? "" : "s"} before move 10.` : `${earlyQueenMoves} queen moves before move 10 — too many.`,
     },
     {
       id: "minorsOutBy12",
       title: "All knights and bishops out by move 12",
       pass: past12 ? minorsOut : true,
+      settled: past12 || minorsOut,
       detail: past12 ? (minorsOut ? "All four developed." : `Still at home: ${minorsHome.join(", ")}.`) : minorsOut ? "On track." : `Still at home: ${minorsHome.join(", ")} (pending).`,
     },
     {
       id: "castledBy10",
       title: "Castled by move 10",
       pass: past10 ? castledBy10 : true,
+      settled: castled || past10,
       detail: castled ? `Castled on move ${moveOf(castleIdx)}.` : past10 ? "Never castled in time." : "Not yet (pending).",
     },
     {
       id: "noHangingPieces",
       title: "No pieces left hanging",
       pass: hangs.length === 0,
+      // A failure is conclusive the moment it happens. A pass is only conclusive
+      // once the opening is over, since nothing hanging so far is not the same
+      // as nothing ever hanging. Move 12 is the same horizon the others use.
+      settled: hangs.length > 0 || past12,
       detail: hangs.length ? `Hanging after: ${hangs.slice(0, 3).join(", ")}${hangs.length > 3 ? "…" : ""}.` : "Nothing left en prise.",
     },
   ];
 }
 
+/** Counts only what has actually been decided. */
 export function passedCount(results: BenchmarkResult[]): { passed: number; total: number } {
-  return { passed: results.filter((r) => r.pass).length, total: results.length };
+  const settled = results.filter((r) => r.settled);
+  return { passed: settled.filter((r) => r.pass).length, total: settled.length };
+}
+
+/** The header chip, in the same shape the opening trainer's plan chip uses. */
+export function benchmarkStatus(results: BenchmarkResult[]): { state: "on_plan" | "off_plan"; label: string; detail?: string; met: number; total: number } {
+  const { passed, total } = passedCount(results);
+  const missed = results.filter((r) => r.settled && !r.pass);
+  return {
+    state: missed.length ? "off_plan" : "on_plan",
+    label: missed.length ? "off track" : total ? "on track" : "starting",
+    detail: missed[0]?.title,
+    met: passed,
+    total,
+  };
 }

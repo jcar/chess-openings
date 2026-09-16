@@ -10,7 +10,7 @@ export function ScoreBoard({ results }: { results: BenchmarkResult[] }) {
       <div className="mb-2 px-1 text-[10.5px] font-bold uppercase tracking-[0.12em] text-ink-soft">Benchmarks</div>
       <ul className="flex flex-col divide-y divide-line">
         {results.map((r) => {
-          const pending = r.detail.includes("pending") || r.detail === "On track.";
+          const pending = !r.settled;
           const tone = pending ? "text-ink-soft" : r.pass ? "text-sage" : "text-clay";
           const mark = pending ? "·" : r.pass ? "✓" : "✕";
           return (

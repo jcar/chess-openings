@@ -547,3 +547,36 @@ test("you can overrule the stop and play on", async ({ page }) => {
   // No dead take-back buttons left behind in the transcript.
   await expect(page.locator('[data-beat="pause_offer"]')).toHaveCount(0);
 });
+
+test("Principles Mode reports only what it has tested", async ({ page }) => {
+  await useScriptedEngine(page, ["e7e5"]);
+  await page.goto("/principles/");
+  await move(page, "e2", "e4");
+  await expect(page.getByRole("button", { name: "Their move e5" })).toBeVisible({ timeout: 10_000 });
+
+  // It used to claim five of five on move two, before four of them could have
+  // been tested. Only "start in the centre" is decidable here.
+  await expect(page.getByRole("button", { name: /on track, 1 of 1/ })).toBeVisible();
+  await expect(page.getByText(/5\/5|5 of 5/)).toHaveCount(0);
+
+  await page.getByRole("button", { name: /See benchmarks/ }).click();
+  await expect(page.getByText("Castled by move 10")).toBeVisible();
+  await expect(page.getByText(/Not yet/)).toBeVisible();
+});
+
+test("Principles Mode stops down on a blunder like the openings do", async ({ page }) => {
+  // The scripted engine reports a big swing, so the move is judged a blunder.
+  await page.addInitScript(() => {
+    window.localStorage.setItem("openinglab:e2e:engine", JSON.stringify(["e7e5"]));
+    window.localStorage.setItem("openinglab:e2e:evals", JSON.stringify([20, 600, 600, 600]));
+  });
+  await page.goto("/principles/");
+  await move(page, "e2", "e4");
+
+  const stop = page.locator('[data-testid="stop-down"]');
+  await expect(stop).toBeVisible({ timeout: 10_000 });
+  await expect(stop.getByRole("button", { name: /Take it back/ })).toBeVisible();
+  await stop.getByRole("button", { name: /^Play on$/ }).click();
+  await expect(stop).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Their move e5" })).toBeVisible({ timeout: 10_000 });
+});

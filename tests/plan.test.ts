@@ -19,6 +19,7 @@ import type { CompanionLine } from "@/lib/companion/types";
 import { buildGoals } from "@/components/companion/SetupSheet";
 import { missingGoals, planStatus } from "@/lib/setup/plan";
 import { setupProgress } from "@/lib/setup/progress";
+import { benchmarkStatus, passedCount, scoreBenchmarks } from "@/lib/principles/benchmarks";
 
 const london = getOpening("london-system")!;
 const book = new MergedBook(london, null, null);
@@ -214,5 +215,47 @@ describe("the setup sheet shows every goal", () => {
     expect(goals.filter((g) => g.done)).toHaveLength(2);
     expect(goals.find((g) => g.label.startsWith("Bishop to f4"))?.why).toMatch(/before e3/);
     expect(goals.some((g) => g.label === "Castle")).toBe(true);
+  });
+});
+
+describe("Principles Mode counts only what it has tested", () => {
+  const game = (line: string) => {
+    const g = new Chess();
+    const h: { san: string; uci: string; color: "white" | "black"; fen: string; byUser: boolean }[] = [];
+    for (const san of line.trim().split(/\s+/).filter(Boolean)) {
+      const m = g.move(san);
+      h.push({ san: m.san, uci: m.from + m.to, color: m.color === "w" ? "white" : "black", fen: g.fen(), byUser: m.color === "w" });
+    }
+    return h;
+  };
+
+  it("claims nothing on move two", () => {
+    // It used to say 5 of 5 here. Four of the five cannot have been tested:
+    // you have not reached move ten or twelve.
+    const r = scoreBenchmarks(game("e4 e5"), "white");
+    const { passed, total } = passedCount(r);
+    expect(total).toBe(1); // only "start in the centre" is decidable
+    expect(passed).toBe(1);
+    expect(r.filter((b) => b.settled)).toHaveLength(1);
+  });
+
+  it("settles a benchmark the moment it fails, without waiting", () => {
+    // 2.Qh5 and 3.Qf3: two queen moves before move ten.
+    const r = scoreBenchmarks(game("e4 e5 Qh5 Nc6 Qf3 Nf6"), "white");
+    const queen = r.find((b) => b.id === "queenQuietBefore10")!;
+    expect(queen.settled).toBe(true);
+    expect(queen.pass).toBe(false);
+  });
+
+  it("gives the header a chip in the same shape the openings use", () => {
+    const clean = benchmarkStatus(scoreBenchmarks(game("e4 e5"), "white"));
+    expect(clean.state).toBe("on_plan");
+    expect(clean.label).toBe("on track");
+    expect(clean.detail).toBeUndefined();
+
+    const slipped = benchmarkStatus(scoreBenchmarks(game("h4 e5"), "white")); // a rook pawn, not the centre
+    expect(slipped.state).toBe("off_plan");
+    expect(slipped.label).toBe("off track");
+    expect(slipped.detail).toBeTruthy();
   });
 });
