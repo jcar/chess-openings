@@ -90,17 +90,26 @@ describe("beats", () => {
     expect(rec.actions?.[0]).toMatchObject({ kind: "jump", index: 0 });
   });
 
-  it("gives a blunder an urgent verdict plus the offer to take it back", () => {
+  it("gives a blunder an urgent verdict, and leaves the take-back to the stop-down", () => {
     const lines = eventToLines(
       { t: "user_judged", plyIndex: 3, message: msg({ kind: "warn", headline: "That hangs the knight.", severity: "blunder", body: "c3 takes it." }), judgement: null, winPct: 30, deltaPct: -30, tags: [], pause: true, stepping: false },
       ctx,
     );
     const kinds = lines.map((l) => l.kind);
     expect(kinds).toContain("verdict_bad");
-    expect(kinds).toContain("pause_offer");
     expect(lines.find((l) => l.kind === "verdict_bad")!.priority).toBe(0);
-    const pause = lines.find((l) => l.kind === "pause_offer")!;
-    expect(pause.actions!.map((a) => a.kind)).toEqual(["takeback", "playon"]);
+    // The stop-down panel owns the choice now. A bubble here would strand dead
+    // buttons in the transcript once play resumes.
+    expect(kinds).not.toContain("pause_offer");
+    expect(lines.every((l) => !l.actions?.some((a) => a.kind === "takeback"))).toBe(true);
+  });
+
+  it("still offers Continue in Step mode, which is not a stop-down", () => {
+    const lines = eventToLines(
+      { t: "user_judged", plyIndex: 3, message: msg({ kind: "note", headline: "Fine." }), judgement: null, winPct: 50, deltaPct: 0, tags: [], pause: false, stepping: true },
+      ctx,
+    );
+    expect(lines.find((l) => l.kind === "step_continue")!.actions!.map((a) => a.kind)).toEqual(["continue"]);
   });
 
   it("remembers a mistake you keep making", () => {

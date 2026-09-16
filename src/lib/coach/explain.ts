@@ -129,10 +129,14 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
       kind: "warn",
       headline: `${violationNow.after} before ${violationNow.before} — wrong order.`,
       body: violationNow.why,
+      // The rule stops the game on its own authority. It used to defer to the
+      // engine, which scores e3-before-Bf4 at about minus one percent, so the
+      // defining error of the whole opening passed without a take-back.
+      lookFor: `Play ${violationNow.before} first.`,
       severity: sev,
       source: "setup",
-      pause: bad,
-      bestSan,
+      pause: true,
+      bestSan: violationNow.before,
     };
   }
 

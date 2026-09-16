@@ -131,20 +131,11 @@ export function eventToLines(e: TrainEvent, ctx: BeatContext): CompanionLine[] {
         out.push(caissa(e.plyIndex, { kind: "swing_down", text: "That one hurt.", priority: 1, tone: "warn", dedupeKey: "swing" }));
       }
 
-      if (e.pause) {
-        out.push(
-          caissa(e.plyIndex, {
-            kind: "pause_offer",
-            text: "Want that one back?",
-            priority: 0,
-            tone: "warn",
-            actions: [
-              { kind: "takeback", label: "Take it back" },
-              { kind: "playon", label: "Play on" },
-            ],
-          }),
-        );
-      } else if (e.stepping) {
+      // A pause no longer posts a bubble: the stop-down panel replaces the
+      // conversation while the game is held, and owns the take-back. Leaving a
+      // "Want that one back?" line here would strand dead buttons in the
+      // transcript once play resumes.
+      if (!e.pause && e.stepping) {
         out.push(
           caissa(e.plyIndex, {
             kind: "step_continue",

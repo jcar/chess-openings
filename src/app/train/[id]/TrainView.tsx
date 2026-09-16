@@ -11,6 +11,8 @@ import { EvalStrip } from "@/components/board/EvalStrip";
 import { CaissaHeader } from "@/components/companion/CaissaHeader";
 import { CompanionStream } from "@/components/companion/CompanionStream";
 import { SetupSheet } from "@/components/companion/SetupSheet";
+import { StopDown } from "@/components/companion/StopDown";
+import { lessonDeco } from "@/lib/coach/lesson";
 import type { CaissaStatus } from "@/components/companion/CaissaAvatar";
 import { estimateFor, useRating } from "@/lib/adapt/rating";
 import { difficultyFor, personaFor } from "@/lib/adapt/strength";
@@ -66,10 +68,19 @@ export function TrainView({ spec }: { spec: OpeningSpec }) {
 
   const setup = useMemo(() => setupProgress(state.fen, spec.setup, userColor, state.history), [state.fen, spec.setup, userColor, state.history]);
 
-  // The newest decorated line for the position you're looking at owns the board.
+  // While the game is stopped the lesson owns the board: it marks the piece the
+  // broken rule was protecting and the square it can no longer reach.
+  const stopped = state.pendingPause && state.coach ? state.coach : null;
+  const lesson = stopped ? lessonDeco(state.fen, stopped, spec.side, last ? last.uci.slice(2, 4) : undefined) : null;
+
+  // Otherwise the newest decorated line for the position you're looking at owns it.
   const decorated = [...companion.lines].reverse().find((l) => l.deco && l.plyIndex >= state.history.length);
-  const arrows = decorated?.deco?.arrow ? [{ ...decorated.deco.arrow, color: decorated.deco.arrow.color ?? "rgba(79,143,247,0.85)" }] : [];
-  const highlight = decorated?.deco?.squares ?? [];
+  const arrows = lesson?.arrow
+    ? [{ ...lesson.arrow, color: "rgba(240,114,138,0.9)" }]
+    : decorated?.deco?.arrow
+      ? [{ ...decorated.deco.arrow, color: decorated.deco.arrow.color ?? "rgba(79,143,247,0.85)" }]
+      : [];
+  const highlight = lesson?.squares ?? decorated?.deco?.squares ?? [];
 
   const newest = companion.lines[companion.lines.length - 1];
   const status: CaissaStatus = state.checking || state.botThinking ? "thinking" : newest?.priority === 0 ? "alert" : "idle";
@@ -131,7 +142,9 @@ export function TrainView({ spec }: { spec: OpeningSpec }) {
         status={status}
         backHref="/"
         backLabel="Back to openings"
-        plan={reviewing || state.result ? undefined : plan}
+        // While the lesson is up it explains the rule in full, so the header's
+        // one-line version would just be the same sentence twice.
+        plan={reviewing || state.result ? undefined : stopped ? { ...plan, detail: undefined } : plan}
         onPlanTap={plan.total ? () => setSetupOpen(true) : undefined}
       />
       {setupOpen && <SetupSheet spec={spec} setup={setup} onClose={() => setSetupOpen(false)} />}
@@ -152,6 +165,7 @@ export function TrainView({ spec }: { spec: OpeningSpec }) {
           lastMove={last ? { from: last.uci.slice(0, 2), to: last.uci.slice(2, 4), mine: last.byUser } : undefined}
           arrows={arrows}
           highlightSquares={highlight}
+          compact={!!stopped}
         />
       </div>
 
@@ -164,7 +178,11 @@ export function TrainView({ spec }: { spec: OpeningSpec }) {
         </div>
       )}
 
-      <CompanionStream lines={companion.lines} onAction={onAction} activePly={reviewIndex} />
+      {stopped ? (
+        <StopDown message={stopped} san={lastUser?.san} onTakeBack={takeBack} onPlayOn={playOn} />
+      ) : (
+        <CompanionStream lines={companion.lines} onAction={onAction} activePly={reviewIndex} />
+      )}
 
       <div className="flex shrink-0 border-t border-line bg-[var(--rail)] px-1 pb-[env(safe-area-inset-bottom)]">
         <ActionButton label="Take back" onClick={() => onAction({ kind: "takeback", label: "" })} disabled={!canTakeBack} glyph="↶" />

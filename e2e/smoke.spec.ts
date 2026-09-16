@@ -47,6 +47,12 @@ async function setPrefs(page: Page, prefs: Record<string, unknown>) {
   }, prefs);
 }
 
+/** Some moves now stop the game to teach. Waive the lesson and carry on. */
+async function playOnIfStopped(page: Page) {
+  const stop = page.locator('[data-testid="stop-down"]');
+  if (await stop.isVisible().catch(() => false)) await stop.getByRole("button", { name: /^Play on$/ }).click();
+}
+
 async function move(page: Page, from: string, to: string) {
   await page.locator(`[data-square="${from}"]`).click();
   await page.locator(`[data-square="${to}"]`).click();
@@ -116,13 +122,15 @@ test("a flagged move offers the take-back, and taking it back forgets those line
   await move(page, "f1", "c4");
   await expect(page.getByRole("button", { name: "Their move Bc5" })).toBeVisible({ timeout: 10_000 });
 
-  // 4.Ng5 is in the book as a mistake.
+  // 4.Ng5 is in the book as a mistake, so the game stops and teaches.
   await move(page, "f3", "g5");
-  await expect(page.locator('[data-beat="pause_offer"]')).toBeVisible({ timeout: 10_000 });
-  await page.getByRole("button", { name: "Take it back" }).click();
+  const stop = page.locator('[data-testid="stop-down"]');
+  await expect(stop).toBeVisible({ timeout: 10_000 });
+  await expect(stop).toContainText(/Ng5/);
+  await stop.getByRole("button", { name: /Take it back/ }).click();
 
   await expect(page.getByRole("button", { name: "Your move Ng5" })).toHaveCount(0);
-  await expect(page.locator('[data-beat="pause_offer"]')).toHaveCount(0);
+  await expect(stop).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Your move Bc4" })).toBeVisible();
 });
 
@@ -206,6 +214,8 @@ test("picking up a pinned piece warns before you commit, and play continues", as
   await move(page, "e2", "e4");
   await expect(page.getByRole("button", { name: "Their move e5" })).toBeVisible({ timeout: 10_000 });
   await move(page, "d2", "d4");
+  // 2.d4 breaks the Italian's "c3 before d4" rule, so the game now stops first.
+  await playOnIfStopped(page);
   await expect(page.getByRole("button", { name: "Their move Bb4+" })).toBeVisible({ timeout: 10_000 });
   await move(page, "b1", "c3");
   await expect(page.getByRole("button", { name: "Their move d6" })).toBeVisible({ timeout: 10_000 });
@@ -303,7 +313,14 @@ test("the header says off plan, and why, when the order rule breaks", async ({ p
   await expect(page.getByText(/on plan/)).toBeVisible();
   await move(page, "e2", "e3"); // e3 before Bf4: the one rule the London has
   await expect(page.getByText(/off plan/)).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText(/e3 came before Bf4/)).toBeVisible();
+
+  // While the lesson is up it carries the reason, so the header does not repeat it.
+  await expect(page.locator('[data-testid="stop-down"]')).toBeVisible();
+  await expect(page.getByText(/e3 came before Bf4/)).toHaveCount(0);
+
+  // Once you waive it, the header takes the reason back over.
+  await playOnIfStopped(page);
+  await expect(page.getByText(/e3 came before Bf4/)).toBeVisible({ timeout: 10_000 });
 });
 
 test("she says so when you get it right, at the default setting", async ({ page }) => {
@@ -484,4 +501,49 @@ test("the win bar is visible in the light theme", async ({ page }) => {
   // It used to be a near-white fill on a near-white page, about 1.05:1.
   expect(contrast).not.toBeNull();
   expect(contrast!).toBeGreaterThan(2);
+});
+
+test("breaking the opening's own rule stops the game and teaches", async ({ page }) => {
+  // e3 before Bf4 is the one rule the London has. The engine scores it at about
+  // minus one percent, so this used to pass with nothing but a note.
+  await useScriptedEngine(page, ["d7d5", "g8f6"]);
+  await page.goto("/train/london-system/");
+  await move(page, "d2", "d4");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
+  await move(page, "e2", "e3");
+
+  const stop = page.locator('[data-testid="stop-down"]');
+  await expect(stop).toBeVisible({ timeout: 10_000 });
+  await expect(stop).toContainText(/Wrong order/i);
+  await expect(stop).toContainText(/e3 before Bf4/);
+  await expect(stop).toContainText(/Play Bf4 first/);
+
+  // The conversation is out of the way while the lesson is up.
+  await expect(page.locator('[data-testid="companion-stream"]')).toHaveCount(0);
+  // And the board is still there, so the lesson can point at it.
+  await expect(page.locator('[data-square="e3"] [data-piece]')).toHaveCount(1);
+
+  // The opponent does not get to reply while you decide.
+  await expect(page.getByRole("button", { name: "Their move Nf6" })).toHaveCount(0);
+
+  await stop.getByRole("button", { name: /Take it back/ }).click();
+  await expect(stop).toHaveCount(0);
+  await expect(page.locator('[data-square="e3"] [data-piece]')).toHaveCount(0);
+  await expect(page.locator('[data-testid="companion-stream"]')).toBeVisible();
+});
+
+test("you can overrule the stop and play on", async ({ page }) => {
+  await useScriptedEngine(page, ["d7d5", "g8f6"]);
+  await page.goto("/train/london-system/");
+  await move(page, "d2", "d4");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
+  await move(page, "e2", "e3");
+
+  const stop = page.locator('[data-testid="stop-down"]');
+  await expect(stop).toBeVisible({ timeout: 10_000 });
+  await stop.getByRole("button", { name: /^Play on$/ }).click();
+  await expect(stop).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Their move Nf6" })).toBeVisible({ timeout: 10_000 });
+  // No dead take-back buttons left behind in the transcript.
+  await expect(page.locator('[data-beat="pause_offer"]')).toHaveCount(0);
 });

@@ -24,6 +24,8 @@ export interface BoardProps {
   interactive?: boolean;
   /** Optional square highlights merged under selection/hint styling. */
   squareStyles?: Record<string, React.CSSProperties>;
+  /** Shrink the board to make room below it, for a stop-down lesson. */
+  compact?: boolean;
   /**
    * Enables tap-to-move. Given a square, return the legal destination squares
    * for the piece there (empty array if none / not movable).
@@ -129,6 +131,7 @@ export function Board({
   onDrop,
   interactive = true,
   squareStyles,
+  compact = false,
   getLegalMoves,
   onMove,
   onSelect,
@@ -210,7 +213,7 @@ export function Board({
   return (
     <div
       data-chessboard
-      className="board-frame mx-auto w-full max-w-[min(92vw,560px,72svh)] touch-none select-none"
+      className={`board-frame mx-auto w-full touch-none select-none ${compact ? "max-w-[min(66vw,420px,40svh)]" : "max-w-[min(92vw,560px,72svh)]"}`}
     >
      <div className={showNotation ? "board-grid" : undefined}>
       {showNotation && (
