@@ -9,6 +9,18 @@ import { Board } from "@/components/board/Board";
 import { ArrowLeftIcon } from "@/components/icons";
 import { OpponentReplies } from "@/components/OpponentReplies";
 
+/** One heading treatment for the whole page. Every section used to be the same
+ *  grey card with the same border, so nothing could be skimmed: the main idea,
+ *  the traps and the move list all carried identical weight. */
+function SectionHead({ children, tone = "ink" }: { children: React.ReactNode; tone?: "ink" | "warn" }) {
+  return (
+    <h2 className={`flex items-center gap-2 font-display text-lg font-bold ${tone === "warn" ? "text-clay" : "text-ink"}`}>
+      {children}
+      <span aria-hidden className={`h-px flex-1 ${tone === "warn" ? "bg-clay/30" : "bg-line"}`} />
+    </h2>
+  );
+}
+
 export function TheoryView({ spec }: { spec: OpeningSpec }) {
   const pieceName = { N: "Knight", B: "Bishop", R: "Rook", Q: "Queen", K: "King" } as const;
   return (
@@ -31,7 +43,7 @@ export function TheoryView({ spec }: { spec: OpeningSpec }) {
       </div>
 
       <div className="flex flex-col gap-4 px-4 pt-4">
-        <p className="text-[15px] leading-relaxed">{spec.pitch}</p>
+        <p className="text-[17px] leading-relaxed text-ink">{spec.pitch}</p>
 
         <Link
           href={`/train/${spec.id}/`}
@@ -41,39 +53,42 @@ export function TheoryView({ spec }: { spec: OpeningSpec }) {
         </Link>
 
         {spec.setup.pieces.length > 0 && (
-          <section className="rounded-2xl border border-line bg-card p-4">
-            <h2 className="font-display text-base font-bold">Your setup</h2>
-            <ul className="mt-2 flex flex-col gap-1.5 text-sm">
+          <section className="flex flex-col gap-2">
+            <SectionHead>Your setup</SectionHead>
+            <ul className="flex flex-col divide-y divide-line text-sm">
               {spec.setup.pieces.map((p, i) => (
-                <li key={i} className="flex justify-between gap-3">
+                <li key={i} className="flex justify-between gap-3 py-1.5">
                   <span>{pieceName[p.piece]}</span>
                   <span className="font-mono text-ink-soft">{p.squares.join(" / ")}</span>
                 </li>
               ))}
               {spec.setup.pawns.length > 0 && (
-                <li className="flex justify-between gap-3">
+                <li className="flex justify-between gap-3 py-1.5">
                   <span>Pawns</span>
                   <span className="font-mono text-ink-soft">{spec.setup.pawns.join(" ")}</span>
                 </li>
               )}
               {spec.setup.castle !== "none" && (
-                <li className="flex justify-between gap-3">
+                <li className="flex justify-between gap-3 py-1.5">
                   <span>Castle</span>
                   <span className="font-mono text-ink-soft">{spec.setup.castle === "either" ? "either side" : spec.setup.castle}</span>
                 </li>
               )}
             </ul>
             {spec.setup.order?.map((r, i) => (
-              <p key={i} className="mt-2 text-sm text-ink-soft">
-                <span className="font-mono text-ink">{r.before}</span> before <span className="font-mono text-ink">{r.after}</span> — {r.why}
+              <p key={i} className="rounded-xl border border-clay/40 bg-clay/5 px-3 py-2 text-sm leading-snug text-ink">
+                <span className="font-bold text-clay">
+                  <span className="font-mono">{r.before}</span> before <span className="font-mono">{r.after}</span>.
+                </span>{" "}
+                {r.why}
               </p>
             ))}
           </section>
         )}
 
         <section>
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink-soft">Ideas</h2>
-          <div className="flex flex-col gap-3">
+          <SectionHead>Ideas</SectionHead>
+          <div className="mt-2 flex flex-col gap-3">
             {spec.ideas.map((idea) => (
               <div key={idea.id} className="rounded-2xl border border-line bg-card p-4">
                 <div className="font-display text-base font-bold">{idea.title}</div>
@@ -87,19 +102,20 @@ export function TheoryView({ spec }: { spec: OpeningSpec }) {
         <OpponentReplies spec={spec} />
 
         {spec.structureDiagram && (
-          <section className="rounded-2xl border border-line bg-card p-3">
+          <figure className="m-0 flex flex-col gap-2">
+            <SectionHead>The structure</SectionHead>
             <Board fen={spec.structureDiagram.fen} orientation={spec.structureDiagram.orientation ?? spec.side} interactive={false} arrows={spec.structureDiagram.arrows} />
-            {spec.structureDiagram.caption && <p className="mt-3 px-1 text-sm leading-snug text-ink-soft">{spec.structureDiagram.caption}</p>}
-          </section>
+            {spec.structureDiagram.caption && <figcaption className="text-sm leading-snug text-ink-soft">{spec.structureDiagram.caption}</figcaption>}
+          </figure>
         )}
 
         {spec.traps.length > 0 && (
           <section>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink-soft">Traps</h2>
-            <div className="flex flex-col gap-3">
+            <SectionHead tone="warn">Traps</SectionHead>
+            <div className="mt-2 flex flex-col gap-3">
               {spec.traps.map((t) => (
-                <div key={t.name} className="rounded-2xl border border-line bg-card p-4">
-                  <div className="font-display text-base font-bold">{t.name}</div>
+                <div key={t.name} className="rounded-2xl border border-clay/40 bg-clay/[0.06] p-4">
+                  <div className="font-display text-base font-bold text-clay">{t.name}</div>
                   <div className="mt-1 font-mono text-xs text-ink-soft">{t.sans.join(" ")}</div>
                   <p className="mt-2 text-sm leading-snug">
                     <span className="font-semibold">The tell:</span> {t.tell}
@@ -112,13 +128,13 @@ export function TheoryView({ spec }: { spec: OpeningSpec }) {
         )}
 
         <section>
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink-soft">Model games</h2>
-          <div className="flex flex-col gap-2">
+          <SectionHead>Model games</SectionHead>
+          <div className="mt-1 flex flex-col divide-y divide-line">
             {spec.modelGames.map((g) => (
-              <div key={g.label} className="rounded-2xl border border-line bg-card p-4">
+              <div key={g.label} className="py-3">
                 <div className="font-semibold">{g.label}</div>
-                <div className="mt-1 font-mono text-xs leading-relaxed text-ink-soft">{g.sans.join(" ")}</div>
-                {g.summary && <p className="mt-2 text-sm leading-snug text-ink-soft">{g.summary}</p>}
+                <div className="mt-1 overflow-x-auto font-mono text-xs leading-relaxed text-ink-soft">{g.sans.join(" ")}</div>
+                {g.summary && <p className="mt-1.5 text-sm leading-snug text-ink-soft">{g.summary}</p>}
               </div>
             ))}
           </div>

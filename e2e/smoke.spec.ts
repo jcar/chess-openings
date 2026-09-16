@@ -185,7 +185,9 @@ test("theory page renders and links back to sparring", async ({ page }) => {
 
 test("theory page shows what you'll face from the baked sub-1200 data", async ({ page }) => {
   await page.goto("/openings/italian-game/");
-  await expect(page.getByText(/What you.ll face at your level/)).toBeVisible({ timeout: 10_000 });
+  // The heading dropped "at your level"; the sentence below it says so instead.
+  await expect(page.getByRole("heading", { name: /What you.ll face/ })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/rated under 1200 on Lichess/)).toBeVisible();
   await expect(page.getByText(/After 1\.e4 e5 2\.Nf3 Nc6 3\.Bc4/)).toBeVisible();
   await expect(page.getByText(/^\d+%$/).first()).toBeVisible();
 });
@@ -579,4 +581,42 @@ test("Principles Mode stops down on a blunder like the openings do", async ({ pa
   await stop.getByRole("button", { name: /^Play on$/ }).click();
   await expect(stop).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Their move e5" })).toBeVisible({ timeout: 10_000 });
+});
+
+test("the theory page reads as sections, not one long stack of boxes", async ({ page }) => {
+  await page.goto("/openings/london-system/", { waitUntil: "networkidle" });
+  for (const heading of ["Your setup", "Ideas", "What you'll face", "The structure", "Traps", "Model games"]) {
+    await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+  }
+  // The order rule is the one thing here that loses games, and it is marked as such.
+  await expect(page.getByText(/Bf4 before e3\./)).toBeVisible();
+  // Counts are rounded, not printed to the digit.
+  await expect(page.getByText(/^\d+(\.\d)?M games$/).first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/1,545,089/)).toHaveCount(0);
+  // Colour is no longer the only thing saying which replies to punish, and the
+  // ordinary ones are not labelled at all.
+  await expect(page.getByText(/^(Loose|Mistake)$/).first()).toBeVisible();
+  await expect(page.getByText("Normal", { exact: true })).toHaveCount(0);
+});
+
+test("summary shows the games it keeps, and no spliced sentence", async ({ page }) => {
+  const mk = (openingId: string, result: string, ago: number, plies: number) => ({
+    openingId, at: new Date(Date.now() - ago).toISOString(), result, plies, clean: true, botElo: 900,
+    accuracy: 72, worst: { san: "Qb6", moveNo: 9, drop: 14 }, setupScore: 0.5, benchmarks: null,
+  });
+  await page.addInitScript((games) => {
+    window.localStorage.setItem("openinglab:sessions:v1", JSON.stringify({ recent: games }));
+  }, [mk("london-system", "win", 3.6e6, 44), mk("italian-game", "loss", 9e7, 38), mk("london-system", "draw", 1.8e8, 60)]);
+
+  await page.goto("/summary/", { waitUntil: "networkidle" });
+  await expect(page.getByText(/You won in 22 moves/)).toBeVisible();
+
+  // The setup bullet used to paste a piece description onto the end of itself.
+  await expect(page.getByText(/reached 50% of your setup/)).toBeVisible();
+  await expect(page.getByText(/The London bishop\. Out to f4/)).toHaveCount(0);
+
+  const earlier = page.getByRole("heading", { name: "Before that" });
+  await expect(earlier).toBeVisible();
+  await expect(page.getByRole("link", { name: /Lost.*Italian Game/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Drew.*London System/ })).toBeVisible();
 });

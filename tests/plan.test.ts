@@ -19,6 +19,7 @@ import type { CompanionLine } from "@/lib/companion/types";
 import { buildGoals } from "@/components/companion/SetupSheet";
 import { missingGoals, planStatus } from "@/lib/setup/plan";
 import { setupProgress } from "@/lib/setup/progress";
+import { compactCount } from "@/lib/format";
 import { benchmarkStatus, passedCount, scoreBenchmarks } from "@/lib/principles/benchmarks";
 
 const london = getOpening("london-system")!;
@@ -257,5 +258,16 @@ describe("Principles Mode counts only what it has tested", () => {
     expect(slipped.state).toBe("off_plan");
     expect(slipped.label).toBe("off track");
     expect(slipped.detail).toBeTruthy();
+  });
+});
+
+describe("numbers as a reader would say them", () => {
+  it("rounds big counts and leaves small ones alone", () => {
+    expect(compactCount(1_545_089)).toBe("1.5M");
+    expect(compactCount(3_061_575)).toBe("3.1M");
+    expect(compactCount(12_400_000)).toBe("12M");
+    expect(compactCount(47_300)).toBe("47k");
+    expect(compactCount(820)).toBe("820");
+    expect(compactCount(0)).toBe("0");
   });
 });

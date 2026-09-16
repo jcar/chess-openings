@@ -16,7 +16,15 @@ function bullets(s: Session): string[] {
   const spec = s.openingId === "principles" ? PRINCIPLES_SPEC : getOpening(s.openingId);
   if (s.setupScore !== null) {
     const pct = Math.round(s.setupScore * 100);
-    out.push(pct >= 80 ? `You reached your setup before the book ran out (${pct}%). That's the whole point of a system opening — keep doing it.` : `You reached ${pct}% of your setup before leaving the book. ${spec?.setup.pieces[0]?.why ?? "Finish the structure before starting a plan."}`);
+    // This used to paste the first setup piece's description onto the end of the
+    // sentence, so the London read "...before leaving the book. The London
+    // bishop. Out to f4 before e3..." — two unrelated thoughts glued together.
+    const goals = spec?.setup.pieces.length ?? 0;
+    out.push(
+      pct >= 80
+        ? `You reached your setup before the book ran out, ${pct}% of it. That is the whole point of a system opening, so keep doing it.`
+        : `You reached ${pct}% of your setup before leaving the book.${goals ? ` The other ${goals > 1 ? "pieces" : "piece"} of the structure are what make the plan work, so finish it before starting one.` : ""}`,
+    );
   }
   if (s.benchmarks) out.push(`${s.benchmarks.passed} of ${s.benchmarks.total} benchmarks — ${s.benchmarks.passed >= 4 ? "that's a graduation-level game." : "aim for four."}`);
   if (s.worst) out.push(s.worst.drop >= 12 ? `The turning point was ${s.worst.san} on move ${s.worst.moveNo} (−${Math.round(s.worst.drop)}% winning chances). One move, not the whole game.` : `No big swings — your worst move only cost ${Math.round(s.worst.drop)}%. The game was decided by small things, which is where plans matter.`);
@@ -32,6 +40,9 @@ export function SummaryView() {
   const spec = last ? (last.openingId === "principles" ? PRINCIPLES_SPEC : getOpening(last.openingId)) : null;
   const recur = last ? recurring(mistakes, last.openingId) : [];
   const own = last ? rating.perOpening[last.openingId] : undefined;
+  // The page kept a history and never showed it, which made "Summary" a
+  // last-game page wearing a broader name.
+  const earlier = sessions.recent.slice(1, 9);
 
   return (
     <div className="pb-dock mx-auto w-full max-w-lg px-4 pt-4">
@@ -77,6 +88,20 @@ export function SummaryView() {
             <Stat label="Overall" value={String(rating.global.rating)} sub={`${rating.global.wins}W ${rating.global.losses}L ${rating.global.draws}D`} />
           </section>
 
+          {earlier.length > 0 && (
+            <section>
+              <h2 className="mb-1 flex items-center gap-2 font-display text-base font-bold">
+                Before that
+                <span aria-hidden className="h-px flex-1 bg-line" />
+              </h2>
+              <ul className="flex flex-col divide-y divide-line">
+                {earlier.map((g, i) => (
+                  <PastGame key={`${g.at}-${i}`} game={g} />
+                ))}
+              </ul>
+            </section>
+          )}
+
           <div className="flex gap-3">
             <Link href={spec.id === "principles" ? "/principles/" : `/train/${spec.id}/`} className="flex min-h-[52px] flex-1 items-center justify-center rounded-2xl bg-primary px-4 font-bold text-white">
               Spar again
@@ -88,6 +113,35 @@ export function SummaryView() {
         </div>
       )}
     </div>
+  );
+}
+
+const RESULT = {
+  win: { label: "Won", tone: "text-sage" },
+  loss: { label: "Lost", tone: "text-clay" },
+  draw: { label: "Drew", tone: "text-ink-soft" },
+} as const;
+
+function PastGame({ game }: { game: Session }) {
+  const spec = game.openingId === "principles" ? PRINCIPLES_SPEC : getOpening(game.openingId);
+  const r = RESULT[game.result as keyof typeof RESULT] ?? RESULT.draw;
+  const href = game.openingId === "principles" ? "/principles/" : `/train/${game.openingId}/`;
+  return (
+    <li>
+      <Link href={href} className="flex min-h-[56px] items-center gap-3 py-2.5">
+        <span className={`w-11 shrink-0 text-sm font-bold ${r.tone}`}>{r.label}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-semibold leading-tight">{spec?.name ?? game.openingId}</span>
+          <span className="block text-xs text-ink-soft">
+            {Math.ceil(game.plies / 2)} moves
+            {game.accuracy !== null ? ` · ${game.accuracy}% accuracy` : ""}
+            {game.worst ? ` · worst ${game.worst.san}` : ""}
+            {game.clean ? "" : " · not rated"}
+          </span>
+        </span>
+        <span aria-hidden className="shrink-0 text-ink-soft">›</span>
+      </Link>
+    </li>
   );
 }
 
