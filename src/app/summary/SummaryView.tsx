@@ -34,7 +34,7 @@ export function SummaryView() {
   const own = last ? rating.perOpening[last.openingId] : undefined;
 
   return (
-    <div className="mx-auto w-full max-w-lg px-4 py-4">
+    <div className="pb-dock mx-auto w-full max-w-lg px-4 pt-4">
       <header className="mb-4 flex items-center gap-2">
         <Link href="/" aria-label="Home" className="flex h-11 w-11 items-center justify-center rounded-full text-ink-soft">
           <ArrowLeftIcon className="h-6 w-6" />

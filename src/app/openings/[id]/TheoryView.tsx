@@ -12,7 +12,7 @@ import { OpponentReplies } from "@/components/OpponentReplies";
 export function TheoryView({ spec }: { spec: OpeningSpec }) {
   const pieceName = { N: "Knight", B: "Bishop", R: "Rook", Q: "Queen", K: "King" } as const;
   return (
-    <div className="mx-auto w-full max-w-lg pb-6">
+    <div className="pb-dock mx-auto w-full max-w-lg">
       <header className="flex items-center gap-2 px-3 pt-2">
         <Link href="/openings" aria-label="All openings" className="flex h-11 w-11 items-center justify-center rounded-full text-ink-soft">
           <ArrowLeftIcon className="h-6 w-6" />

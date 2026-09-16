@@ -47,7 +47,7 @@ export default function Home() {
   const core = coreOpenings();
   const rest = otherOpenings();
   return (
-    <div className="mx-auto w-full max-w-lg px-4 py-6">
+    <div className="pb-dock mx-auto w-full max-w-lg px-4 pt-6">
       <header className="mb-4">
         <h1 className="font-display text-3xl font-extrabold tracking-tight">Who do you want to spar?</h1>
         <p className="mt-1.5 text-sm text-ink-soft">The bot plays like your real opponents.</p>

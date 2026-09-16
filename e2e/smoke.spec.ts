@@ -418,3 +418,70 @@ test("a checkpoint asks its question before it locks the board", async ({ page }
   await move(page, "c1", "f4");
   await expect(page.locator('[data-square="f4"] [data-piece]')).toHaveCount(1, { timeout: 10_000 });
 });
+
+test("the fixed bottom bar never covers page content", async ({ page }) => {
+  for (const path of ["/", "/openings/", "/openings/london-system/", "/summary/", "/about/"]) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(250);
+    const dock = await page.locator("nav").last().boundingBox();
+    const last = await page.evaluate(() => {
+      const root = document.querySelector(".pb-dock");
+      const r = root?.getBoundingClientRect();
+      return r ? r.bottom : null;
+    });
+    expect(dock, path).not.toBeNull();
+    // The page's content box ends at or above the bar, so nothing hides under it.
+    expect(last, path).not.toBeNull();
+    expect(last!, path).toBeLessThanOrEqual(dock!.y + dock!.height + 1);
+  }
+});
+
+test("a question is readable from its first word", async ({ page }) => {
+  await useScriptedEngine(page, ["d7d5", "g8f6"]);
+  await page.goto("/train/london-system/");
+  await move(page, "d2", "d4");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
+  await move(page, "g1", "f3");
+
+  const q = page.locator('[data-beat="checkpoint_q"]');
+  await expect(q).toBeVisible({ timeout: 10_000 });
+  const stream = await page.locator('[data-testid="companion-stream"]').boundingBox();
+  const box = await q.boundingBox();
+  // The top of the question sits inside the panel, not scrolled off above it.
+  expect(box!.y).toBeGreaterThanOrEqual(stream!.y - 1);
+
+  // And three sentence-length answers stack rather than sharing a row.
+  const opts = q.getByRole("button");
+  await expect(opts).toHaveCount(3);
+  const a = await opts.nth(0).boundingBox();
+  const b = await opts.nth(1).boundingBox();
+  expect(b!.y).toBeGreaterThan(a!.y + a!.height - 1);
+});
+
+test("the win bar is visible in the light theme", async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem("openinglab:theme", "light"));
+  await useScriptedEngine(page, ["d7d5"]);
+  await page.goto("/train/london-system/");
+  await move(page, "d2", "d4");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
+
+  const contrast = await page.evaluate(() => {
+    const bar = document.querySelector('[aria-label^="Your winning chances"]');
+    const fill = bar?.firstElementChild as HTMLElement | undefined;
+    if (!fill) return null;
+    const lum = (c: string) => {
+      const [r, g, b] = (c.match(/\d+/g) || ["0", "0", "0"]).map(Number).map((v) => {
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const a = lum(getComputedStyle(fill).backgroundColor);
+    const b = lum(getComputedStyle(document.body).backgroundColor);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  });
+  // It used to be a near-white fill on a near-white page, about 1.05:1.
+  expect(contrast).not.toBeNull();
+  expect(contrast!).toBeGreaterThan(2);
+});

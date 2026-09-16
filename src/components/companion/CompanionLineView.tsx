@@ -59,35 +59,38 @@ export function CompanionLineView({
   }
 
   const expandable = !!line.more;
+  const choices = (line.actions ?? []).filter((a) => a.kind !== "jump");
+  const stacked = choices.length > 2 || choices.some((a) => a.label.length > 16);
   return (
     <div className="flex items-start gap-2" data-beat={line.kind} data-spoken={line.speak ? "true" : "false"}>
       <CaissaAvatar status={line.priority === 0 ? "alert" : "idle"} size={26} />
       <div className={`min-w-0 flex-1 rounded-2xl border bg-card px-3 py-2 ${TONE_EDGE[tone]}`}>
-        <button
-          type="button"
-          onClick={() => expandable && setOpen((v) => !v)}
-          disabled={!expandable}
-          className="w-full text-left"
-          aria-expanded={expandable ? open : undefined}
-        >
-          <span className={`text-[15px] leading-snug ${TONE_TEXT[tone]}`}>{line.text}</span>
-          {expandable && !open && <span className="ml-1 text-xs text-ink-soft">· why</span>}
-        </button>
+        {expandable ? (
+          <button type="button" onClick={() => setOpen((v) => !v)} className="w-full text-left" aria-expanded={open}>
+            <span className={`text-[15px] leading-snug ${TONE_TEXT[tone]}`}>{line.text}</span>
+            {!open && <span className="ml-1 text-xs text-ink-soft">· why</span>}
+          </button>
+        ) : (
+          <p className={`text-[15px] leading-snug ${TONE_TEXT[tone]}`}>{line.text}</p>
+        )}
         {open && line.more && <p className="mt-1.5 text-sm leading-snug text-ink-soft">{line.more}</p>}
-        {line.actions && line.actions.some((a) => a.kind !== "jump") && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {line.actions
-              .filter((a) => a.kind !== "jump")
-              .map((a, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => onAction(a)}
-                  className="min-h-[44px] flex-1 rounded-xl border border-line bg-bg px-3 text-sm font-semibold active:scale-[0.99]"
-                >
-                  {a.label}
-                </button>
-              ))}
+        {choices.length > 0 && (
+          // Two short actions sit side by side. Three, or anything sentence-length,
+          // becomes a column — a 390px screen split three ways turns an answer
+          // like "c4 as early as possible to gambit a pawn" into five lines.
+          <div className={`mt-2 flex gap-2 ${stacked ? "flex-col" : "flex-row"}`}>
+            {choices.map((a, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onAction(a)}
+                className={`min-h-[44px] rounded-xl border border-line bg-bg px-3 py-2 text-sm font-semibold active:scale-[0.99] ${
+                  stacked ? "w-full text-left" : "flex-1"
+                }`}
+              >
+                {a.label}
+              </button>
+            ))}
           </div>
         )}
       </div>

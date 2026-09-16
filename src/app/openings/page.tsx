@@ -12,7 +12,7 @@ const FAMILY_LABEL: Record<string, string> = {
 export default function OpeningsIndex() {
   const families = ["1e4-e5", "1e4-other", "1d4", "flank"] as const;
   return (
-    <div className="mx-auto w-full max-w-lg px-4 py-6">
+    <div className="pb-dock mx-auto w-full max-w-lg px-4 pt-6">
       <h1 className="font-display text-3xl font-extrabold tracking-tight">Openings</h1>
       <p className="mt-2 text-sm text-ink-soft">Ideas first, moves second. Read the plan, then go spar it.</p>
       {families.map((fam) => {

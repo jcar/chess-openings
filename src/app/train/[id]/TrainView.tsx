@@ -137,7 +137,7 @@ export function TrainView({ spec }: { spec: OpeningSpec }) {
       {setupOpen && <SetupSheet spec={spec} setup={setup} onClose={() => setSetupOpen(false)} />}
 
       <div className="shrink-0">
-        <EvalStrip userWinPct={state.userWinPct} userIsWhite={userColor === "white"} delta={delta} />
+        <EvalStrip userWinPct={state.userWinPct} delta={delta} />
       </div>
 
       <div className="w-full shrink-0 touch-none select-none">

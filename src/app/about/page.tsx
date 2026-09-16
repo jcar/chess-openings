@@ -1,6 +1,6 @@
 export default function About() {
   return (
-    <div className="mx-auto w-full max-w-lg px-4 py-6">
+    <div className="pb-dock mx-auto w-full max-w-lg px-4 pt-6">
       <h1 className="font-display text-3xl font-extrabold tracking-tight">About OpeningLab</h1>
       <p className="mt-3 text-sm leading-relaxed text-ink-soft">
         A free opening sparring partner for players rated up to about 1200. The bot plays the moves your real

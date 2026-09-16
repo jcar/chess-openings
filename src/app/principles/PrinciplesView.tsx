@@ -97,7 +97,7 @@ export function PrinciplesView() {
       />
 
       <div className="shrink-0">
-        <EvalStrip userWinPct={state.userWinPct} userIsWhite={userColor === "white"} />
+        <EvalStrip userWinPct={state.userWinPct} />
       </div>
 
       <div className="w-full shrink-0 touch-none select-none">

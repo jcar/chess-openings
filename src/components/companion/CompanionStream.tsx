@@ -26,7 +26,15 @@ export function CompanionStream({
   useEffect(() => {
     const el = scroller.current;
     if (!el || !following.current) return;
-    el.scrollTop = el.scrollHeight;
+    // A question that fills the panel would otherwise scroll its own opening
+    // words out of sight, leaving a fragment above the answer buttons. Anything
+    // you have to read and act on is aligned to the TOP; everything else follows
+    // the bottom as usual.
+    const newest = lines[lines.length - 1];
+    const asksSomething = !!newest?.actions?.some((a) => a.kind !== "jump");
+    const last = el.lastElementChild as HTMLElement | null;
+    if (asksSomething && last) el.scrollTop = Math.max(0, last.offsetTop - el.offsetTop);
+    else el.scrollTop = el.scrollHeight;
   }, [lines]);
 
   const newest = lines[lines.length - 1];
