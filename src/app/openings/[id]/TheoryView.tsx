@@ -78,7 +78,7 @@ export function TheoryView({ spec }: { spec: OpeningSpec }) {
             {spec.setup.order?.map((r, i) => (
               <p key={i} className="rounded-xl border border-clay/40 bg-clay/5 px-3 py-2 text-sm leading-snug text-ink">
                 <span className="font-bold text-clay">
-                  <span className="font-mono">{r.before}</span> before <span className="font-mono">{r.after}</span>.
+                  <span className="font-mono">{r.before.split("|").join(" or ")}</span> before <span className="font-mono">{r.after}</span>.
                 </span>{" "}
                 {r.why}
               </p>

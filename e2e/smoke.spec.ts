@@ -609,3 +609,23 @@ test("summary shows the games it keeps, and no spliced sentence", async ({ page 
   await expect(page.getByRole("link", { name: /Lost.*Italian Game/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /Drew.*London System/ })).toBeVisible();
 });
+
+test("the hint never suggests the move the trainer would stop you for", async ({ page }) => {
+  // Caro-Kann Advance. The engine's choice here can be ...e6, which locks in the
+  // bishop and would trigger a stop-down. Asking for help and then being
+  // punished for taking it is the worst thing this app can do.
+  await useScriptedEngine(page, ["e2e4", "d2d4", "e4e5"]);
+  await page.goto("/train/caro-kann/");
+  await expect(page.getByRole("button", { name: "Their move e4" })).toBeVisible({ timeout: 15_000 });
+  await move(page, "c7", "c6");
+  await expect(page.getByRole("button", { name: "Their move d4" })).toBeVisible({ timeout: 15_000 });
+  await move(page, "d7", "d5");
+  await expect(page.getByRole("button", { name: "Their move e5" })).toBeVisible({ timeout: 15_000 });
+
+  await page.getByRole("button", { name: /Hint/ }).click();
+  const hint = page.locator('[data-beat="hint"]');
+  await expect(hint).toBeVisible({ timeout: 10_000 });
+  await expect(hint).not.toContainText(/^e6/);
+  // Authoring syntax must never reach the player.
+  await expect(page.getByText(/\|/)).toHaveCount(0);
+});

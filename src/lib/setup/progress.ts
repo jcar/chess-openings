@@ -39,6 +39,33 @@ function hasCastled(history: PlyRecord[], side: Side): boolean {
   return history.some((p) => p.color === side && /^O-O(-O)?$/.test(strip(p.san)));
 }
 
+
+const LIGHT_SQUARE = (sq: string) => (sq.charCodeAt(0) - 97 + Number(sq[1])) % 2 === 1;
+
+/** Could the side still play one of these moves at all? Only the piece's
+ *  existence and, for a bishop, its colour complex — not a full search. */
+export function canStillSatisfy(game: Chess, color: "w" | "b", alternatives: string): boolean {
+  const alts = alternatives.split("|").map((a) => strip(a.trim())).filter(Boolean);
+  if (!alts.length) return true;
+  const present = game
+    .board()
+    .flat()
+    .filter((c): c is NonNullable<typeof c> => !!c && c.color === color);
+
+  return alts.some((alt) => {
+    const to = alt.slice(-2);
+    if (!/^[a-h][1-8]$/.test(to)) return true;
+    const head = alt[0];
+    if (!/[KQRBN]/.test(head)) return present.some((p) => p.type === "p"); // a pawn move
+    const type = head.toLowerCase();
+    const candidates = present.filter((p) => p.type === type);
+    if (!candidates.length) return false;
+    // A bishop can only ever reach squares of its own colour.
+    if (type === "b") return candidates.some((p) => LIGHT_SQUARE(p.square) === LIGHT_SQUARE(to));
+    return true;
+  });
+}
+
 export function setupProgress(fen: string, setup: SetupSpec, side: Side, history: PlyRecord[]): SetupProgress {
   const game = new Chess(fen);
   const color = side === "white" ? "w" : "b";
@@ -69,8 +96,11 @@ export function setupProgress(fen: string, setup: SetupSpec, side: Side, history
   const orderViolations = (setup.order ?? []).filter((rule) => {
     const iAfter = firstIndex(rule.after);
     const iBefore = firstIndex(rule.before);
-    // Violated if `after` was played and no `before` alternative preceded it.
-    return iAfter !== -1 && (iBefore === -1 || iBefore > iAfter);
+    if (iAfter === -1 || (iBefore !== -1 && iBefore < iAfter)) return false;
+    // A rule protects a piece. Once that piece is off the board there is nothing
+    // left to protect, and the rule is moot: the Caro-Kann's "bishop out before
+    // ...e6" means nothing after the bishop has been traded.
+    return canStillSatisfy(game, color, rule.before);
   });
 
   const total = pieces.length + pawns.length + (castleWanted ? 1 : 0);

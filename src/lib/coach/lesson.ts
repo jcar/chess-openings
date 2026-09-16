@@ -13,6 +13,9 @@ export interface LessonDeco {
 
 const PIECE_LETTERS = new Set(["K", "Q", "R", "B", "N"]);
 
+/** A bishop can only ever reach squares of its own colour. */
+const isLight = (sq: string) => (sq.charCodeAt(0) - 97 + Number(sq[1])) % 2 === 1;
+
 /** "Bf4" -> { piece: "b", to: "f4" }; "e3" -> { piece: "p", to: "e3" }. */
 function parseTarget(san: string): { piece: string; to: string } | null {
   const clean = san.replace(/[+#!?]/g, "");
@@ -31,8 +34,6 @@ export function lessonDeco(fenAfter: string, message: CoachMessage, side: Side, 
   const squares: string[] = lastMoveTo ? [lastMoveTo] : [];
 
   if (message.source !== "setup" || !message.bestSan) return squares.length ? { squares } : null;
-  const target = parseTarget(message.bestSan);
-  if (!target) return { squares };
 
   let board;
   try {
@@ -41,12 +42,17 @@ export function lessonDeco(fenAfter: string, message: CoachMessage, side: Side, 
     return { squares };
   }
   const colour = side === "white" ? "w" : "b";
-  for (const row of board) {
-    for (const cell of row) {
-      if (!cell || cell.color !== colour || cell.type !== target.piece) continue;
-      // The piece that wanted that square, wherever it is stranded now.
-      return { squares: [...squares, cell.square as Square, target.to], arrow: { from: cell.square, to: target.to } };
-    }
+  const mine = board.flat().filter((c): c is NonNullable<typeof c> => !!c && c.color === colour);
+
+  // "Bf5|Bg4" offers alternatives. Take the first one some piece could actually
+  // reach: drawing the dark-squared bishop heading for g4 is worse than drawing
+  // nothing, because it shows a move that cannot exist.
+  for (const alt of message.bestSan.split("|").map((a) => a.trim())) {
+    const target = parseTarget(alt);
+    if (!target) continue;
+    const piece = mine.find((p) => p.type === target.piece && (target.piece !== "b" || isLight(p.square) === isLight(target.to)));
+    if (!piece) continue;
+    return { squares: [...squares, piece.square as Square, target.to], arrow: { from: piece.square, to: target.to } };
   }
-  return { squares: [...squares, target.to] };
+  return squares.length ? { squares } : null;
 }

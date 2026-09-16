@@ -11,6 +11,7 @@ import { getOpening } from "@/content";
 import { MergedBook } from "@/lib/book/merged";
 import { judge } from "@/lib/coach/classify";
 import { explainUserMove } from "@/lib/coach/explain";
+import { moveHint } from "@/lib/coach/prompt";
 import { describeMove, tagMove, type PlyRecord } from "@/lib/coach/features";
 import { eventToLines, type BeatContext } from "@/lib/companion/beats";
 import { admit } from "@/lib/companion/filter";
@@ -269,5 +270,73 @@ describe("numbers as a reader would say them", () => {
     expect(compactCount(47_300)).toBe("47k");
     expect(compactCount(820)).toBe("820");
     expect(compactCount(0)).toBe("0");
+  });
+});
+
+describe("the hint never suggests a move the trainer will punish", () => {
+  const caro = getOpening("caro-kann")!;
+  const caroBook = new MergedBook(caro, null, null);
+
+  const play = (line: string) => {
+    const g = new Chess();
+    const h: PlyRecord[] = [];
+    for (const san of line.trim().split(/\s+/).filter(Boolean)) {
+      const m = g.move(san);
+      h.push({ san: m.san, uci: m.from + m.to, color: m.color === "w" ? "white" : "black" });
+    }
+    return { g, h };
+  };
+
+  it("redirects to the bishop when the engine wants ...e6 first", () => {
+    // Caro-Kann Advance, Black's bishop still at home. ...e6 now locks it in,
+    // which is the one rule this opening has.
+    const { g, h } = play("e4 c6 d4 d5 e5");
+    const setup = setupProgress(g.fen(), caro.setup, "black", h);
+    const hint = moveHint({ spec: caro, book: caroBook, fen: g.fen(), setup, leftBook: true, firedIdeas: [], history: h }, "e7e6");
+    expect(hint).not.toBeNull();
+    expect(hint!.text).toMatch(/^Bf5/); // the rule's own move, not the engine's
+    expect(hint!.text).toMatch(/locked-in bishop|before \.\.\.e6/);
+    expect(hint!.to).toBe("f5");
+  });
+
+  it("leaves an ordinary hint alone", () => {
+    const { g, h } = play("e4 c6 d4 d5 e5");
+    const setup = setupProgress(g.fen(), caro.setup, "black", h);
+    const hint = moveHint({ spec: caro, book: caroBook, fen: g.fen(), setup, leftBook: true, firedIdeas: [], history: h }, "c8f5");
+    expect(hint!.text).toMatch(/^Bf5/);
+  });
+});
+
+describe("an order rule with nothing left to protect", () => {
+  const caro = getOpening("caro-kann")!;
+
+  it("stops firing once the bishop it protects is gone", () => {
+    const g = new Chess();
+    const h: PlyRecord[] = [];
+    for (const san of "e4 c6 d4 d5 e5 e6".split(" ")) {
+      const m = g.move(san);
+      h.push({ san: m.san, uci: m.from + m.to, color: m.color === "w" ? "white" : "black" });
+    }
+    // Bishop still on c8 and ...e6 played, so the rule fires.
+    expect(setupProgress(g.fen(), caro.setup, "black", h).orderViolations).toHaveLength(1);
+
+    // Take that bishop off the board and the rule has nothing left to protect.
+    const gone = new Chess(g.fen());
+    gone.remove("c8");
+    expect(setupProgress(gone.fen(), caro.setup, "black", h).orderViolations).toHaveLength(0);
+  });
+
+  it("still fires when only the wrong-coloured bishop remains", () => {
+    const g = new Chess();
+    const h: PlyRecord[] = [];
+    for (const san of "e4 c6 d4 d5 e5 e6".split(" ")) {
+      const m = g.move(san);
+      h.push({ san: m.san, uci: m.from + m.to, color: m.color === "w" ? "white" : "black" });
+    }
+    const onlyDark = new Chess(g.fen());
+    onlyDark.remove("c8"); // light-squared bishop gone; f8 (dark) remains
+    const v = setupProgress(onlyDark.fen(), caro.setup, "black", h).orderViolations;
+    // f8 is a dark-squared bishop and can never reach f5 or g4, so no rule.
+    expect(v).toHaveLength(0);
   });
 });

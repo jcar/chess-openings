@@ -131,12 +131,12 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
   if (violationNow) {
     return {
       kind: "warn",
-      headline: `${violationNow.after} before ${violationNow.before} — wrong order.`,
+      headline: `${violationNow.after} before ${orMoves(violationNow.before)} — wrong order.`,
       body: violationNow.why,
       // The rule stops the game on its own authority. It used to defer to the
       // engine, which scores e3-before-Bf4 at about minus one percent, so the
       // defining error of the whole opening passed without a take-back.
-      lookFor: `Play ${violationNow.before} first.`,
+      lookFor: `Play ${orMoves(violationNow.before)} first.`,
       severity: sev,
       source: "setup",
       pause: true,
@@ -242,6 +242,9 @@ export interface BotMoveContext {
   /** The move is on the opening's defining line or an authored model game. */
   bookLine?: boolean;
 }
+
+/** "Bf5|Bg4" is how alternatives are authored. Nobody says it aloud. */
+const orMoves = (alts: string) => alts.split("|").map((a) => a.trim()).filter(Boolean).join(" or ");
 
 const pct = (f: number) => `${Math.round(f * 100)}%`;
 

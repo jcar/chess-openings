@@ -5,7 +5,7 @@ import { Chess, type Square } from "chess.js";
 import type { IdeaCard, OpeningSpec, Trap } from "@/content/spec";
 import type { MergedBook } from "@/lib/book/merged";
 import { epd } from "@/lib/book/key";
-import { nextSetupHint, type SetupProgress } from "@/lib/setup/progress";
+import { nextSetupHint, setupProgress, type SetupProgress } from "@/lib/setup/progress";
 import { describeMove, PIECE_NAME, tagMove, type MoveInfo, type PlyRecord } from "./features";
 import { NEGATIVE_TAGS, topTag } from "./tags";
 import { templateYou } from "./templates";
@@ -108,9 +108,51 @@ export interface HintStep {
  * The hint: the move, and why it's the move. One tap, no quiz — the
  * before-you-move prompt already does the thinking-out-loud part unasked.
  */
+
+/** If the engine's move would break an order rule, hint the rule's own move
+ *  instead. Returns null when there is nothing to correct. */
+function obeyingOrderRules(ctx: PromptContext, bestUci: string): HintStep | null {
+  const { spec, fen, setup, history = [] } = ctx;
+  if (!spec.setup.order?.length) return null;
+
+  const move = describeMove(fen, bestUci);
+  if (!move) return null;
+
+  let after: SetupProgress;
+  try {
+    const g = new Chess(fen);
+    g.move({ from: move.from, to: move.to, promotion: move.uci[4] as never });
+    after = setupProgress(g.fen(), spec.setup, spec.side, [...history, { san: move.san, uci: move.uci, color: spec.side }]);
+  } catch {
+    return null;
+  }
+
+  const broken = after.orderViolations.find((v) => !setup.orderViolations.some((o) => o.before === v.before && o.after === v.after));
+  if (!broken) return null;
+
+  // Play the move the rule was waiting for, if one of its alternatives is legal.
+  const g = new Chess(fen);
+  for (const alt of broken.before.split("|").map((a) => a.trim())) {
+    try {
+      const played = g.move(alt);
+      g.undo();
+      return { text: `${played.san} — ${broken.why}`, from: played.from as Square, to: played.to as Square };
+    } catch {
+      /* try the next alternative */
+    }
+  }
+  return { text: `Not yet: ${broken.why}` };
+}
+
 export function moveHint(ctx: PromptContext, bestUci: string | null): HintStep | null {
   const { spec, fen, setup } = ctx;
   if (!bestUci) return { text: "The coach is still checking this position — try again in a moment." };
+
+  // The engine does not know the opening's order rules, so its best move can be
+  // one the trainer will stop you for playing. Suggesting it and then punishing
+  // it is the worst thing this app can do, so the rule wins.
+  const lawful = obeyingOrderRules(ctx, bestUci);
+  if (lawful) return lawful;
 
   const from = bestUci.slice(0, 2) as Square;
   const to = bestUci.slice(2, 4) as Square;
