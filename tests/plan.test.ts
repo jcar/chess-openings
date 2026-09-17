@@ -340,3 +340,65 @@ describe("an order rule with nothing left to protect", () => {
     expect(v).toHaveLength(0);
   });
 });
+
+describe("every verdict answers 'was there something better?'", () => {
+  const italian = getOpening("italian-game")!;
+  const itaBook = new MergedBook(italian, null, null);
+
+  /** cpAfterOpp drives the win% drop, which is what sets the severity band. */
+  function verdict(line: string, san: string, cpBefore: number, cpAfterOpp: number, bestUci: string | null) {
+    const g = new Chess();
+    const history: PlyRecord[] = [];
+    for (const s of line.trim().split(/\s+/).filter(Boolean)) {
+      const m = g.move(s);
+      history.push({ san: m.san, uci: m.from + m.to, color: m.color === "w" ? "white" : "black" });
+    }
+    const fenBefore = g.fen();
+    const m = g.move(san);
+    const uci = m.from + m.to;
+    const move = describeMove(fenBefore, uci)!;
+    return explainUserMove({
+      spec: italian,
+      book: itaBook,
+      fenBefore,
+      fenAfter: g.fen(),
+      move,
+      history,
+      tags: tagMove(fenBefore, g.fen(), move, history),
+      judgement: judge(cpBefore, cpAfterOpp, bestUci === uci),
+      bestUci,
+      setupBefore: setupProgress(fenBefore, italian.setup, "white", history),
+      setupAfter: setupProgress(g.fen(), italian.setup, "white", [...history, { san: m.san, uci, color: "white" }]),
+      verbosity: "normal" as const,
+      inOpening: true,
+    });
+  }
+
+  it("says nothing was better when the move was best", () => {
+    const msg = verdict("e4 e5 Nf3 Nc6 Bc4 Bc5", "c3", 30, -30, "c2c3");
+    expect(msg.pause).toBe(false);
+    expect(`${msg.body} ${msg.lookFor ?? ""}`).toMatch(/Nothing better/i);
+  });
+
+  it("names the better move when the gap is small but real", () => {
+    // A drop in the "ok" band: not worth stopping for, worth mentioning.
+    const msg = verdict("e4 e5 Nf3 Nc6 Bc4 Bc5", "d3", 90, -20, "c2c3");
+    expect(msg.severity).toBe("ok");
+    expect(msg.pause).toBe(false);
+    expect(msg.body).toMatch(/c3 was a shade better/);
+  });
+
+  it("stops and explains when the gap is an inaccuracy", () => {
+    const msg = verdict("e4 e5 Nf3 Nc6 Bc4 Bc5", "d3", 120, -20, "c2c3");
+    expect(msg.severity).toBe("inaccuracy");
+    expect(msg.pause).toBe(true); // the learning moment Jason asked for
+    expect(msg.headline).toMatch(/There was better/);
+    expect(msg.lookFor).toMatch(/c3 was the move/);
+  });
+
+  it("never claims a better move it does not have", () => {
+    const msg = verdict("e4 e5 Nf3 Nc6 Bc4 Bc5", "d3", 120, -20, null);
+    expect(msg.pause).toBe(false); // nothing to teach, so nothing to stop for
+    expect(`${msg.headline} ${msg.body} ${msg.lookFor ?? ""}`).not.toMatch(/undefined|null/);
+  });
+});

@@ -10,13 +10,16 @@ import type { CoachMessage } from "@/lib/coach/explain";
 
 export function StopDown({ message, san, onTakeBack, onPlayOn }: { message: CoachMessage; san?: string; onTakeBack: () => void; onPlayOn: () => void }) {
   const severe = message.severity === "blunder" || message.severity === "mistake";
+  // An inaccuracy is not a telling-off. It is "you left something on the table",
+  // and it should not wear the same red as hanging a piece.
+  const missed = message.severity === "inaccuracy";
 
   return (
     <section
       data-testid="stop-down"
       data-severity={message.severity ?? "none"}
       aria-live="assertive"
-      className="flex min-h-0 flex-1 flex-col border-t-2 border-clay/60 bg-clay/[0.06]"
+      className={`flex min-h-0 flex-1 flex-col border-t-2 ${missed ? "border-amber/60 bg-amber/[0.06]" : "border-clay/60 bg-clay/[0.06]"}`}
     >
       {/* The lesson scrolls; the choice never does. A long explanation used to
           push both buttons below the fold, which is the one thing that must
@@ -25,8 +28,8 @@ export function StopDown({ message, san, onTakeBack, onPlayOn }: { message: Coac
       <div className="flex items-start gap-2.5">
         <CaissaAvatar status="alert" size={28} />
         <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-clay">
-            {message.source === "setup" ? "Wrong order" : severe ? "Hold on" : "Not that one"}
+          <div className={`text-[11px] font-bold uppercase tracking-[0.12em] ${missed ? "text-amber" : "text-clay"}`}>
+            {message.source === "setup" ? "Wrong order" : severe ? "Hold on" : missed ? "There was better" : "Not that one"}
           </div>
           <h2 className="mt-0.5 font-display text-lg font-bold leading-tight text-ink">{message.headline}</h2>
         </div>

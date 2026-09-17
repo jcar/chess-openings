@@ -101,6 +101,17 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
   const bad = bucket === "bad";
   const trim = (s: string) => (verbosity === "terse" ? s.split(/(?<=\.)\s/)[0] : s);
 
+  // "Book move" and "On plan" told you the move was fine and left you wondering
+  // whether something better was available. Every verdict now answers that.
+  // "good" is within a few percent of best, which is noise at this depth.
+  const tail =
+    sev === "best"
+      ? "Nothing better here."
+      : bestSan && sev === "ok"
+        ? `${bestSan} was a shade better.`
+        : "";
+  const withTail = (body: string) => [trim(body), tail].filter(Boolean).join(" ");
+
   // 1) Authored knowledge about exactly this move.
   const authoredMistake = a?.mistakes?.find((m) => m.san === move.san);
   if (authoredMistake) {
@@ -121,7 +132,7 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
     };
   }
   if (a?.yourMove && a.yourMove.san === move.san) {
-    return { kind: "praise", headline: `${move.san}. Book move.`, body: trim(a.yourMove.why), severity: sev, source: "authored", pause: false };
+    return { kind: "praise", headline: `${move.san}. Book move.`, body: withTail(a.yourMove.why), severity: sev, source: "authored", pause: false };
   }
   // The opening's OWN rule outranks its move list. Playing e3 before Bf4 is a
   // real London error; playing Bf4 before Nf3 is not, even though the authored
@@ -144,6 +155,27 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
     };
   }
 
+  // 3) Not wrong, but it cost you something real. This is the case that used to
+  //     pass as "Fine": no warning, no alternative, nothing to learn from.
+  //     It sits above the "book move" and "on plan" branches on purpose: those
+  //     said the move was fine and left you wondering. It does NOT fire on the
+  //     book's own move — a shallow engine disagreeing with the book by a few
+  //     percent is the engine being shallow.
+  if (sev === "inaccuracy" && bestSan && move.san !== a?.yourMove?.san) {
+    const tpl = negative ? templateYou(negative, "meh", slots) : null;
+    return {
+      kind: "note",
+      headline: `${move.san}. There was better.`,
+      body: trim(tpl ? tpl.why : `${bestSan} holds more of your position. Look at what it covers or attacks that ${move.san} leaves alone.`),
+      lookFor: `${bestSan} was the move.`,
+      bestSan,
+      severity: sev,
+      source: tpl ? "tag" : "engine",
+      pause: true,
+      tag: negative ?? undefined,
+    };
+  }
+
   // A move that completes one of the setup's own goals is on plan, whatever move
   // order the book was written in.
   if (!bad && !negative && ctx.setupAfter.met > ctx.setupBefore.met) {
@@ -152,7 +184,7 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
     return {
       kind: "praise",
       headline: `${move.san}. On plan.`,
-      body: trim(why ?? "Another piece of the structure in place."),
+      body: withTail(why ?? "Another piece of the structure in place."),
       lookFor: a?.yourMove && a.yourMove.san !== move.san ? `The book's move order here is ${a.yourMove.san}, but this reaches the same setup.` : undefined,
       severity: sev,
       source: "setup",
@@ -165,7 +197,7 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
       return {
         kind: "note",
         headline: `${move.san} works too.`,
-        body: trim(`The book move here is ${a.yourMove.san}: ${a.yourMove.why}`),
+        body: withTail(`The book move here is ${a.yourMove.san}: ${a.yourMove.why}`),
         bestSan: a.yourMove.san,
         severity: sev,
         source: "authored",
@@ -186,13 +218,13 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
     };
   }
 
-  // 3) Feature tag with the engine's verdict.
+  // 4) Feature tag with the engine's verdict.
   if (negative && (bad || bucket === "meh" || verbosity === "verbose")) {
     const tpl = templateYou(negative, bucket, slots);
-    return { kind: bad ? "warn" : "note", headline: tpl.headline, body: trim(tpl.why), lookFor: tpl.lookFor, bestSan, severity: sev, source: "tag", pause: bad, tag: negative };
+    return { kind: bad ? "warn" : "note", headline: tpl.headline, body: bad ? trim(tpl.why) : withTail(tpl.why), lookFor: tpl.lookFor, bestSan, severity: sev, source: "tag", pause: bad, tag: negative };
   }
 
-  // 4) Engine says it's bad but no tag explains why.
+  // 5) Engine says it's bad but no tag explains why.
   if (bad) {
     return {
       kind: "warn",
@@ -205,13 +237,15 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
     };
   }
 
-  // 5) Good move: praise the best positive tag, or a setup milestone.
+  // 6) Good move: praise the best positive tag, or a setup milestone.
   const positive = topTag(tags.filter((t) => !NEGATIVE_TAGS.has(t) && t !== "captures" && t !== "common_reply"));
   if (ctx.setupAfter.met > ctx.setupBefore.met && ctx.setupAfter.total) {
     const goal = ctx.setupAfter.pieces.find((p) => p.done && !ctx.setupBefore.pieces.find((q) => q.piece === p.piece && q.squares.join() === p.squares.join())?.done);
     return {
       kind: "praise",
-      headline: goal ? `${PIECE_NAME[goal.piece.toLowerCase() as never] ?? "Piece"} where it belongs.` : `Setup: ${ctx.setupAfter.met} of ${ctx.setupAfter.total}.`,
+      headline: goal
+        ? `${move.san}. ${PIECE_NAME[goal.piece.toLowerCase() as never] ?? "Piece"} where it belongs.`
+        : `${move.san}. Setup ${ctx.setupAfter.met} of ${ctx.setupAfter.total}.`,
       body: trim(goal ? spec.setup.pieces.find((p) => p.piece === goal.piece && p.squares.join() === goal.squares.join())?.why ?? "Part of your setup." : "Another piece of the structure in place."),
       severity: sev,
       source: "setup",
@@ -220,9 +254,9 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
   }
   if (positive) {
     const tpl = templateYou(positive, "good", slots);
-    return { kind: "praise", headline: tpl.headline, body: verbosity === "terse" ? "" : tpl.why, severity: sev, source: "tag", pause: false, tag: positive };
+    return { kind: "praise", headline: tpl.headline, body: verbosity === "terse" ? tail : withTail(tpl.why), severity: sev, source: "tag", pause: false, tag: positive };
   }
-  return { kind: "note", headline: sev === "best" ? "Best move." : "Fine.", body: "", severity: sev, source: "engine", pause: false };
+  return { kind: "note", headline: sev === "best" ? `${move.san}. Best move.` : `${move.san}. Fine.`, body: tail, bestSan, severity: sev, source: "engine", pause: false };
 }
 
 export interface BotMoveContext {

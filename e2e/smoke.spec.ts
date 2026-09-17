@@ -629,3 +629,46 @@ test("the hint never suggests the move the trainer would stop you for", async ({
   // Authoring syntax must never reach the player.
   await expect(page.getByText(/\|/)).toHaveCount(0);
 });
+
+test("a move that left something better stops and names it", async ({ page }) => {
+  // A win-percentage drop in the inaccuracy band: not a mistake, but it cost
+  // something. This used to pass as "Fine" with no alternative offered.
+  // An opening with no baked evaluations, so the scripted engine is the source.
+  await page.addInitScript(() => {
+    window.localStorage.setItem("openinglab:e2e:engine", JSON.stringify(["e7e5"]));
+    // Scores are consumed one per evaluation: the position before your move,
+    // then the one after. 120 to -20 is a nine-point win-percentage drop.
+    window.localStorage.setItem("openinglab:e2e:evals", JSON.stringify([120, -20, 0, 0, 0]));
+  });
+  await page.goto("/train/english-opening/");
+  await page.waitForTimeout(1500); // let the opening position be evaluated first
+  // Not the book move, so the book's own recommendation is not second-guessed.
+  await move(page, "b2", "b3");
+
+  const stop = page.locator('[data-testid="stop-down"]');
+  await expect(stop).toBeVisible({ timeout: 10_000 });
+  await expect(stop).toContainText(/There was better/i);
+  // It names the alternative rather than just grading the move.
+  await expect(stop).toContainText(/was the move/);
+  // And it is not dressed as a telling-off.
+  await expect(stop).toHaveAttribute("data-severity", "inaccuracy");
+
+  await stop.getByRole("button", { name: /^Play on$/ }).click();
+  await expect(stop).toHaveCount(0);
+});
+
+test("a best move says so, rather than leaving you wondering", async ({ page }) => {
+  await useScriptedEngine(page, ["d7d5", "g8f6"]);
+  await page.goto("/train/london-system/");
+  await move(page, "d2", "d4");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
+  // The second move, so the position has been evaluated before you play it.
+  await move(page, "c1", "f4");
+  await expect(page.getByRole("button", { name: "Their move Nf6" })).toBeVisible({ timeout: 10_000 });
+
+  // Open the verdict's detail and check it answers "was there better?".
+  const verdict = page.locator('[data-beat="verdict_good"]').last();
+  await expect(verdict).toBeVisible({ timeout: 10_000 });
+  await verdict.getByRole("button").first().click();
+  await expect(verdict).toContainText(/Nothing better/i);
+});
