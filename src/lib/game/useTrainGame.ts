@@ -347,10 +347,15 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
       });
       emit({ t: "user_move", plyIndex: history.length, ply, tags });
       if (wasInBook && !nowInBook) {
-        // Name the move the line actually wanted, so "off book" reads as a fork
-        // in the road rather than a verdict on the player.
+        // Only worth saying when the book actually wanted a different move. With
+        // no recommendation at this node there is nothing to have deviated from:
+        // our coverage simply ran out, which is a fact about our data and not
+        // about the player. Saying it anyway contradicts our own hint, which can
+        // legitimately lead out of a 500-node tree.
         const bookMove = spec.annotations[epd(fenBefore)]?.yourMove?.san;
-        emit({ t: "book_ended", plyIndex: history.length, by: "you", san: info.san, bookMove: bookMove === info.san ? undefined : bookMove });
+        if (bookMove && bookMove !== info.san) {
+          emit({ t: "book_ended", plyIndex: history.length, by: "you", san: info.san, bookMove });
+        }
       }
       if (!wasInBook && nowInBook) emit({ t: "book_resumed", plyIndex: history.length });
       if (result) return true;

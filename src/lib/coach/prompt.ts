@@ -154,6 +154,20 @@ export function moveHint(ctx: PromptContext, bestUci: string | null): HintStep |
   const lawful = obeyingOrderRules(ctx, bestUci);
   if (lawful) return lawful;
 
+  // This is an opening trainer. When the book names a move here, that is the
+  // hint — otherwise the hint can send you somewhere the book does not cover and
+  // the app then reports you for leaving it.
+  const booked = spec.annotations[epd(fen)]?.yourMove;
+  if (booked) {
+    try {
+      const probe = new Chess(fen);
+      const played = probe.move(booked.san);
+      return { text: `${played.san} — ${booked.why}`, from: played.from as Square, to: played.to as Square };
+    } catch {
+      /* the authored move isn't legal here; fall through to the engine */
+    }
+  }
+
   const from = bestUci.slice(0, 2) as Square;
   const to = bestUci.slice(2, 4) as Square;
   const move = describeMove(fen, bestUci);
@@ -193,6 +207,19 @@ function setupWhy(spec: OpeningSpec, setup: SetupProgress, move: MoveInfo): stri
   return done ? null : goal.why ?? null;
 }
 
+/** Short reasons to PLAY a move. The verdict templates read as post-mortems
+ *  ("Material in hand wins itself: trade pieces... let the endgame do the work"),
+ *  which is absurd as the reason for a capture on move five. */
+const HINT_REASON: Partial<Record<string, (m: MoveInfo) => string>> = {
+  wins_material: (m) => `it wins ${m.captured ? PIECE_NAME[m.captured] : "material"}.`,
+  rescues_piece: () => "it saves the piece that was under attack.",
+  castles: () => "it tucks the king away and connects the rooks.",
+  develops: (m) => `it brings the ${PIECE_NAME[m.piece]} into the game.`,
+  claims_centre: () => "it takes space in the centre.",
+  gives_check: () => "it comes with check.",
+  captures: () => "it trades on your terms.",
+};
+
 /** What the move does, from the position itself — works outside the book too. */
 function tagWhy(fen: string, move: MoveInfo, history: PlyRecord[]): string | null {
   try {
@@ -201,6 +228,8 @@ function tagWhy(fen: string, move: MoveInfo, history: PlyRecord[]): string | nul
     const tags = tagMove(fen, g.fen(), move, history);
     const positive = topTag(tags.filter((t) => !NEGATIVE_TAGS.has(t) && t !== "common_reply"));
     if (!positive) return null;
+    const short = HINT_REASON[positive];
+    if (short) return short(move);
     const tpl = templateYou(positive, "good", {
       piece: PIECE_NAME[move.piece],
       from: move.from,

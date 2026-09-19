@@ -402,3 +402,39 @@ describe("every verdict answers 'was there something better?'", () => {
     expect(`${msg.headline} ${msg.body} ${msg.lookFor ?? ""}`).not.toMatch(/undefined|null/);
   });
 });
+
+describe("the hint and the book never contradict each other", () => {
+  const london = getOpening("london-system")!;
+  const lonBook = new MergedBook(london, null, null);
+
+  const at = (line: string) => {
+    const g = new Chess();
+    const h: PlyRecord[] = [];
+    for (const san of line.trim().split(/\s+/).filter(Boolean)) {
+      const m = g.move(san);
+      h.push({ san: m.san, uci: m.from + m.to, color: m.color === "w" ? "white" : "black" });
+    }
+    return { g, h };
+  };
+
+  it("hints the book's move even when the engine prefers another", () => {
+    // After 3...Nf6 the book wants Bf4. Hand the hint a different "best".
+    const { g, h } = at("d4 d5 Nf3 Nf6");
+    const setup = setupProgress(g.fen(), london.setup, "white", h);
+    const hint = moveHint({ spec: london, book: lonBook, fen: g.fen(), setup, leftBook: false, firedIdeas: [], history: h }, "c2c4");
+    expect(hint!.text).toMatch(/^Bf4 —/);
+    expect(hint!.to).toBe("f4");
+  });
+
+  it("gives a reason to play the move, not a post-mortem", () => {
+    // Jason's position: 4...Bg4, where the book has nothing and dxc5 is best.
+    const { g, h } = at("d4 d5 Nf3 Nf6 Bf4 c5 e3 Bg4");
+    const setup = setupProgress(g.fen(), london.setup, "white", h);
+    const hint = moveHint({ spec: london, book: lonBook, fen: g.fen(), setup, leftBook: false, firedIdeas: [], history: h }, "d4c5");
+    expect(hint!.text).toMatch(/^dxc5 —/);
+    // It used to read "Material in hand wins itself: trade pieces, keep your
+    // king safe, and let the endgame do the work" — on move five.
+    expect(hint!.text).not.toMatch(/endgame do the work/);
+    expect(hint!.text).toMatch(/wins (a )?pawn|wins material/i);
+  });
+});

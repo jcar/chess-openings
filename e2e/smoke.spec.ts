@@ -672,3 +672,28 @@ test("a best move says so, rather than leaving you wondering", async ({ page }) 
   await verdict.getByRole("button").first().click();
   await expect(verdict).toContainText(/Nothing better/i);
 });
+
+test("taking the hint never gets you reported for leaving the book", async ({ page }) => {
+  // Jason's line: 1.d4 d5 2.Nf3 Nf6 3.Bf4 c5 4.e3 Bg4. The book has no move
+  // here, dxc5 is genuinely best, and playing it leaves our 500-node tree.
+  // Recommending a move and then flagging it was the contradiction.
+  await useScriptedEngine(page, ["d7d5", "g8f6", "c7c5", "c8g4"]);
+  await page.goto("/train/london-system/");
+  for (const [from, to] of [["d2", "d4"], ["g1", "f3"], ["c1", "f4"], ["e2", "e3"]] as const) {
+    await move(page, from, to);
+    await page.waitForTimeout(2600); // let the reply land before the next click
+  }
+  await expect(page.getByRole("button", { name: "Their move Bg4" })).toBeVisible({ timeout: 10_000 });
+
+  await page.getByRole("button", { name: /Hint/ }).click();
+  const hint = page.locator('[data-beat="hint"]');
+  await expect(hint).toBeVisible({ timeout: 10_000 });
+  await expect(hint).toContainText(/dxc5/);
+  // A reason to play it, not an endgame lecture on move five.
+  await expect(hint).not.toContainText(/endgame do the work/);
+
+  await move(page, "d4", "c5");
+  await expect(page.getByRole("button", { name: "Your move dxc5" })).toBeVisible({ timeout: 10_000 });
+  // Taking our own advice is not a deviation.
+  await expect(page.locator('[data-beat="book_end"]')).toHaveCount(0);
+});
