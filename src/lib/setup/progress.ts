@@ -66,6 +66,31 @@ export function canStillSatisfy(game: Chess, color: "w" | "b", alternatives: str
   });
 }
 
+
+/** Where a move landed, and what moved. "Bxf4+" -> {piece:"B", to:"f4"};
+ *  "exd4" -> {piece:"P", to:"d4"}; castling and promotions are not goals. */
+function destinationOf(san: string): { piece: string; to: string } | null {
+  const clean = strip(san).replace(/=[QRBN]$/, "");
+  if (/^O-O/.test(clean)) return null;
+  const to = clean.slice(-2);
+  if (!/^[a-h][1-8]$/.test(to)) return null;
+  return { piece: /^[KQRBN]/.test(clean) ? clean[0] : "P", to };
+}
+
+/** Did this side ever put that piece on one of those squares? A setup goal is
+ *  something you ACHIEVED, not something that has to still be true at move
+ *  thirty: a knight that reached f3 and was later traded still got there. The
+ *  live-position reading made the counter decay all game, so a full London
+ *  finished as "setup 3 of 8" no matter how well it was played. */
+function everReached(history: PlyRecord[], side: Side, piece: string, squares: string[]): boolean {
+  const want = new Set(squares);
+  return history.some((p) => {
+    if (p.color !== side) return false;
+    const d = destinationOf(p.san);
+    return !!d && d.piece === piece && want.has(d.to);
+  });
+}
+
 export function setupProgress(fen: string, setup: SetupSpec, side: Side, history: PlyRecord[]): SetupProgress {
   const game = new Chess(fen);
   const color = side === "white" ? "w" : "b";
@@ -75,12 +100,13 @@ export function setupProgress(fen: string, setup: SetupSpec, side: Side, history
       const p = game.get(sq as Square);
       return p && p.color === color && p.type.toUpperCase() === goal.piece;
     });
-    return { piece: goal.piece, squares: goal.squares, done: !!on, on };
+    return { piece: goal.piece, squares: goal.squares, done: !!on || everReached(history, side, goal.piece, goal.squares), on };
   });
 
   const pawns = setup.pawns.map((sq) => {
     const p = game.get(sq as Square);
-    return { square: sq, done: !!p && p.color === color && p.type === "p" };
+    const here = !!p && p.color === color && p.type === "p";
+    return { square: sq, done: here || everReached(history, side, "P", [sq]) };
   });
 
   const castleWanted = setup.castle !== "none";

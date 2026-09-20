@@ -438,3 +438,57 @@ describe("the hint and the book never contradict each other", () => {
     expect(hint!.text).toMatch(/wins (a )?pawn|wins material/i);
   });
 });
+
+describe("setup goals record what you achieved, not what survived", () => {
+  const london = getOpening("london-system")!;
+
+  const played = (line: string) => {
+    const g = new Chess();
+    const h: PlyRecord[] = [];
+    for (const san of line.trim().split(/\s+/).filter(Boolean)) {
+      const m = g.move(san);
+      h.push({ san: m.san, uci: m.from + m.to, color: m.color === "w" ? "white" : "black" });
+    }
+    return { g, h };
+  };
+
+  // A complete London: bishop out before e3, both knights, both bishops, the
+  // c3/d4/e3 triangle, and castled.
+  const FULL = "d4 d5 Nf3 Nf6 Bf4 e6 e3 Be7 c3 O-O Nbd2 c5 Bd3 Nc6 O-O";
+
+  it("counts a completed setup as complete", () => {
+    const { g, h } = played(FULL);
+    expect(setupProgress(g.fen(), london.setup, "white", h).met).toBe(8);
+  });
+
+  it("keeps the goals once the pieces are traded off", () => {
+    // Jason won a 29-move game and finished on "setup 3 of 8", because the
+    // count read the final position: by then the minor pieces are long gone.
+    const { g, h } = played(FULL);
+    const endgame = new Chess(g.fen());
+    for (const sq of ["f4", "f3", "d2", "d3"] as const) endgame.remove(sq);
+    const p = setupProgress(endgame.fen(), london.setup, "white", h);
+    expect(p.met).toBe(8);
+    expect(p.pieces.every((x) => x.done)).toBe(true);
+  });
+
+  it("does not credit a goal that was never reached", () => {
+    const { g, h } = played("d4 d5 Nf3 Nf6 e3 e6");
+    const p = setupProgress(g.fen(), london.setup, "white", h);
+    // Pawns d4 and e3 are in; the bishop never came out.
+    expect(p.pieces.find((x) => x.squares.includes("f4"))!.done).toBe(false);
+    expect(p.met).toBeLessThan(8);
+  });
+
+  it("credits a bishop that reached f4 and then retreated to g3", () => {
+    const { g, h } = played("d4 d5 Nf3 Nf6 Bf4 e6 Bg3 Bd6");
+    const p = setupProgress(g.fen(), london.setup, "white", h);
+    expect(p.pieces.find((x) => x.squares.includes("f4"))!.done).toBe(true);
+  });
+
+  it("counts a pawn that arrived by capture", () => {
+    const { g, h } = played("e4 d5 exd5 Qxd5 Nc3 Qa5 d4 c5 Nf3 cxd4 Nxd4 e6 Ndb5 Na6 Be3");
+    // White's e-pawn captured onto d5 and later vanished; the d4 push happened.
+    expect(setupProgress(g.fen(), london.setup, "white", h).pawns.find((x) => x.square === "d4")!.done).toBe(true);
+  });
+});

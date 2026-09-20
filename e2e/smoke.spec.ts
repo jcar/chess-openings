@@ -697,3 +697,22 @@ test("taking the hint never gets you reported for leaving the book", async ({ pa
   // Taking our own advice is not a deviation.
   await expect(page.locator('[data-beat="book_end"]')).toHaveCount(0);
 });
+
+test("the setup counter never goes backwards", async ({ page }) => {
+  await useScriptedEngine(page, ["d7d5", "g8f6", "e7e6", "f8e7"]);
+  await page.goto("/train/london-system/");
+  await move(page, "d2", "d4");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
+  await move(page, "c1", "f4");
+  await expect(page.getByRole("button", { name: "Their move Nf6" })).toBeVisible({ timeout: 10_000 });
+  await move(page, "g1", "f3");
+  await expect(page.getByRole("button", { name: "Their move e6" })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("button", { name: /3 of 8 setup goals/ })).toBeVisible();
+
+  // Move the knight off f3. It got there, so the goal stays met — the count
+  // used to read the live position and decay all game.
+  await move(page, "f3", "g5");
+  await playOnIfStopped(page);
+  await expect(page.getByRole("button", { name: /3 of 8 setup goals/ })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("button", { name: /2 of 8 setup goals/ })).toHaveCount(0);
+});
