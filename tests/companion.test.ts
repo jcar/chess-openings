@@ -5,7 +5,6 @@ import { anticipate } from "@/lib/companion/anticipate";
 import { eventToLines, type BeatContext } from "@/lib/companion/beats";
 import { admit, admitAll, mergeLines, truncateLines } from "@/lib/companion/filter";
 import { reduce } from "@/lib/companion/useCompanion";
-import { shouldSpeak } from "@/lib/companion/useSpeech";
 import type { TrainEvent } from "@/lib/companion/events";
 import type { CompanionLine } from "@/lib/companion/types";
 import type { CoachMessage } from "@/lib/coach/explain";
@@ -16,7 +15,7 @@ const italian = getOpening("italian-game")!;
 const ctx: BeatContext = { spec: italian, recurring: [], lastSession: null };
 
 function fakeLine(over: Partial<CompanionLine> = {}): CompanionLine {
-  return { id: "x", plyIndex: 0, speaker: "caissa", kind: "orient", text: "something", priority: 1, speak: true, ...over };
+  return { id: "x", plyIndex: 0, speaker: "caissa", kind: "orient", text: "something", priority: 1, ...over };
 }
 
 function ply(san: string, byUser = true): Ply {
@@ -86,7 +85,7 @@ describe("admit", () => {
 describe("beats", () => {
   it("turns a user move into a silent transcript line that can jump the board", () => {
     const [rec] = eventToLines({ t: "user_move", plyIndex: 1, ply: ply("e4"), tags: [] }, ctx);
-    expect(rec).toMatchObject({ speaker: "you", kind: "your_move", san: "e4", speak: false, priority: 2 });
+    expect(rec).toMatchObject({ speaker: "you", kind: "your_move", san: "e4", priority: 2 });
     expect(rec.actions?.[0]).toMatchObject({ kind: "jump", index: 0 });
   });
 
@@ -132,23 +131,21 @@ describe("beats", () => {
     expect(greet.plyIndex).toBe(0);
   });
 
-  it("refuses to speak a line that runs long, but still shows it", () => {
-    const long = "This explanation goes on and on and on and will never fit inside a spoken line budget at all";
+  it("shows a long line in full rather than truncating it", () => {
+    const long = "This explanation goes on and on and on and will never fit inside a single short line at all";
     const [l] = eventToLines(
       { t: "user_judged", plyIndex: 2, message: msg({ headline: long }), judgement: null, winPct: null, deltaPct: null, tags: [], pause: false, stepping: false },
       ctx,
     );
     expect(l.text).toBe(long);
-    expect(l.speak).toBe(false);
   });
 
-  it("offers Continue, silently, in step pacing", () => {
+  it("offers Continue in step pacing", () => {
     const lines = eventToLines(
       { t: "user_judged", plyIndex: 2, message: msg(), judgement: null, winPct: null, deltaPct: null, tags: [], pause: false, stepping: true },
       ctx,
     );
     const step = lines.find((l) => l.kind === "step_continue")!;
-    expect(step.speak).toBe(false);
     expect(step.actions![0].kind).toBe("continue");
   });
 
@@ -228,16 +225,3 @@ describe("reduce (the conversation log)", () => {
   });
 });
 
-describe("shouldSpeak", () => {
-  it("speaks her urgent and normal lines", () => {
-    expect(shouldSpeak(fakeLine({ priority: 0 }), { voice: true })).toBe(true);
-    expect(shouldSpeak(fakeLine({ priority: 1 }), { voice: true })).toBe(true);
-  });
-  it("never speaks colour, the transcript, over-long lines, or anything when muted", () => {
-    expect(shouldSpeak(fakeLine({ priority: 2 }), { voice: true })).toBe(false);
-    expect(shouldSpeak(fakeLine({ speaker: "you" }), { voice: true })).toBe(false);
-    expect(shouldSpeak(fakeLine({ speak: false }), { voice: true })).toBe(false);
-    expect(shouldSpeak(fakeLine({ priority: 0 }), { voice: false })).toBe(false);
-    expect(shouldSpeak(undefined, { voice: true })).toBe(false);
-  });
-});

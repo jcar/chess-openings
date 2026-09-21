@@ -19,8 +19,6 @@ import { difficultyFor, personaFor } from "@/lib/adapt/strength";
 import { moveHint } from "@/lib/coach/prompt";
 import type { MoveTag } from "@/lib/coach/tags";
 import { useCompanion } from "@/lib/companion/useCompanion";
-import { useCompanionPrefs } from "@/lib/companion/prefs";
-import { useSpeech } from "@/lib/companion/useSpeech";
 import type { LineAction } from "@/lib/companion/types";
 import { useTrainGame, type GameOverInfo } from "@/lib/game/useTrainGame";
 import { benchmarkStatus, scoreBenchmarks } from "@/lib/principles/benchmarks";
@@ -35,11 +33,9 @@ export function PrinciplesView() {
   const sessions = useSessions();
   const estimate = estimateFor(rating, spec.id);
   const difficulty = useMemo(() => difficultyFor(estimate.rating, estimate.momentum), [estimate.rating, estimate.momentum]);
-  const { voice } = useCompanionPrefs();
   const companion = useCompanion(spec);
   const [showScore, setShowScore] = useState(false);
 
-  useSpeech(companion.lines, { voice });
 
   const onGameOver = useCallback(
     (info: GameOverInfo) => {

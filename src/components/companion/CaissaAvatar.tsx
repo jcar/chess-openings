@@ -3,17 +3,16 @@
 // Caissa's presence. A knight in a ring that changes with what she's doing, so
 // you can tell at a glance whether she's watching, thinking, talking or alarmed.
 
-export type CaissaStatus = "idle" | "thinking" | "speaking" | "alert";
+export type CaissaStatus = "idle" | "thinking" | "alert";
 
 const RING: Record<CaissaStatus, string> = {
   idle: "border-line text-ink-soft",
   thinking: "border-primary/50 text-primary-strong",
-  speaking: "border-primary text-primary-strong",
   alert: "border-clay text-clay",
 };
 
 export function CaissaAvatar({ status = "idle", size = 32 }: { status?: CaissaStatus; size?: number }) {
-  const animated = status === "speaking" || status === "alert";
+  const animated = status === "alert";
   return (
     <span
       aria-hidden

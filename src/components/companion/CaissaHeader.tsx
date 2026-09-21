@@ -6,8 +6,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowLeftIcon } from "@/components/icons";
-import { useSpeechSupported } from "@/lib/audio/useSpeechSupported";
-import { companionStore, useCompanionPrefs } from "@/lib/companion/prefs";
 import type { PlanStatus } from "@/lib/setup/plan";
 import { CaissaAvatar, type CaissaStatus } from "./CaissaAvatar";
 import { CompanionSettings } from "./CompanionSettings";
@@ -31,9 +29,7 @@ export function CaissaHeader({
   /** Opens the goals behind the counter. Without it the chip is just a number. */
   onPlanTap?: () => void;
 }) {
-  const { voice } = useCompanionPrefs();
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const canSpeak = useSpeechSupported();
 
   return (
     <>
@@ -62,17 +58,6 @@ export function CaissaHeader({
             <span className="truncate">{subtitle}</span>
           </div>
         </div>
-        {canSpeak && (
-          <button
-            type="button"
-            onClick={() => companionStore.update((s) => ({ ...s, voice: !s.voice }))}
-            aria-label={voice ? "Mute Caissa" : "Unmute Caissa"}
-            aria-pressed={!voice}
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg ${voice ? "text-primary-strong" : "text-ink-soft"}`}
-          >
-            {voice ? "🔊" : "🔇"}
-          </button>
-        )}
         <button
           type="button"
           onClick={() => setSettingsOpen(true)}

@@ -7,40 +7,6 @@ async function useScriptedEngine(page: Page, queue: string[] = []) {
   }, queue);
 }
 
-/** Record what Caissa is asked to say, without a real voice engine. */
-async function recordSpeech(page: Page) {
-  await page.addInitScript(() => {
-    (window as unknown as { __spoken: string[] }).__spoken = [];
-    class FakeUtterance {
-      text: string;
-      lang = "";
-      rate = 1;
-      pitch = 1;
-      volume = 1;
-      voice: unknown = null;
-      constructor(text: string) {
-        this.text = text;
-      }
-    }
-    Object.defineProperty(window, "SpeechSynthesisUtterance", { value: FakeUtterance, configurable: true });
-    Object.defineProperty(window, "speechSynthesis", {
-      configurable: true,
-      value: {
-        speaking: false,
-        pending: false,
-        getVoices: () => [{ lang: "en-US", localService: true, name: "Test" }],
-        cancel() {},
-        resume() {},
-        speak(u: { text: string }) {
-          (window as unknown as { __spoken: string[] }).__spoken.push(u.text);
-        },
-      },
-    });
-  });
-}
-
-const spoken = (page: Page) => page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken);
-
 async function setPrefs(page: Page, prefs: Record<string, unknown>) {
   await page.addInitScript((p) => {
     window.localStorage.setItem("openinglab:companion:v1", JSON.stringify(p));
@@ -148,27 +114,9 @@ test("step pacing waits for Continue inside her bubble", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Their move e5" })).toBeVisible({ timeout: 10_000 });
 });
 
-test("she speaks her lines but never the move list, and mute silences her", async ({ page }) => {
-  await recordSpeech(page);
-  await useScriptedEngine(page, ["e7e5"]);
-  await page.goto("/train/italian-game/");
-  await expect(page.locator('[data-beat="greeting"]')).toBeVisible({ timeout: 10_000 });
-  await move(page, "e2", "e4");
-  await expect(page.getByRole("button", { name: "Their move e5" })).toBeVisible({ timeout: 10_000 });
-
-  await expect.poll(async () => (await spoken(page)).length, { timeout: 5_000 }).toBeGreaterThan(0);
-  const said = await spoken(page);
-  expect(said.some((t) => /^e4$|^e5$/.test(t.trim()))).toBe(false); // never reads the transcript
-
-  await page.getByRole("button", { name: "Mute Caissa" }).click();
-  const before = (await spoken(page)).length;
-  await move(page, "g1", "f3");
-  await page.waitForTimeout(1200);
-  expect((await spoken(page)).length).toBe(before);
-});
 
 test("at Quiet she still warns, but stops narrating", async ({ page }) => {
-  await setPrefs(page, { chattiness: "quiet", voice: false });
+  await setPrefs(page, { chattiness: "quiet" });
   await useScriptedEngine(page, ["e7e5"]);
   await page.goto("/train/italian-game/");
   await move(page, "e2", "e4");
@@ -291,7 +239,7 @@ test("she remembers the opening you were last in", async ({ page }) => {
 test("an offbeat opponent move says it is not your fault, and the book resumes", async ({ page }) => {
   // Jason's London game: 1.d4 d5 2.Bf4 c6 — a main move order met by a sideline.
   await useScriptedEngine(page, ["d7d5", "c7c6", "g8f6"]);
-  await setPrefs(page, { chattiness: "chatty", voice: false });
+  await setPrefs(page, { chattiness: "chatty" });
   await page.goto("/train/london-system/");
   await move(page, "d2", "d4");
   await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });

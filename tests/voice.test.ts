@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { TAG_PRIORITY, type MoveTag } from "@/lib/coach/tags";
 import { templateThey, templateYou, type Bucket, type Slots } from "@/lib/coach/templates";
-import { MAX_SPOKEN_WORDS, wordCount } from "@/lib/companion/types";
+import { MAX_HEADLINE_WORDS, wordCount } from "@/lib/companion/types";
 
 const TAGS = Object.keys(TAG_PRIORITY) as MoveTag[];
 const BUCKETS: Bucket[] = ["bad", "meh", "good"];
@@ -46,7 +46,7 @@ describe("her spoken lines fit the budget", () => {
       it(`templateYou(${tag}, ${bucket}) headline is speakable`, () => {
         for (const slots of [FULL, BARE]) {
           const h = templateYou(tag, bucket, slots).headline;
-          expect(wordCount(h), `"${h}"`).toBeLessThanOrEqual(MAX_SPOKEN_WORDS);
+          expect(wordCount(h), `"${h}"`).toBeLessThanOrEqual(MAX_HEADLINE_WORDS);
           expect(h.length).toBeGreaterThan(0);
         }
       });
@@ -55,7 +55,7 @@ describe("her spoken lines fit the budget", () => {
       for (const slots of [FULL, BARE]) {
         const tpl = templateThey(tag, slots);
         if (!tpl) continue;
-        expect(wordCount(tpl.headline), `"${tpl.headline}"`).toBeLessThanOrEqual(MAX_SPOKEN_WORDS);
+        expect(wordCount(tpl.headline), `"${tpl.headline}"`).toBeLessThanOrEqual(MAX_HEADLINE_WORDS);
       }
     });
   }

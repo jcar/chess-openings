@@ -187,7 +187,6 @@ describe("praise actually reaches the player", () => {
       kind: "verdict_good",
       text: "Bf4. On plan.",
       priority: 1,
-      speak: true,
       tone: "praise",
     };
     expect(admit(praise, { chattiness: "normal", recent: [] })).toBe(true);
@@ -205,7 +204,7 @@ describe("praise actually reaches the player", () => {
   });
 
   it("still keeps idle colour out at Normal", () => {
-    const colour: CompanionLine = { id: "3:orient", plyIndex: 3, speaker: "caissa", kind: "orient", text: "A thought.", priority: 2, speak: true };
+    const colour: CompanionLine = { id: "3:orient", plyIndex: 3, speaker: "caissa", kind: "orient", text: "A thought.", priority: 2 };
     expect(admit(colour, { chattiness: "normal", recent: [] })).toBe(false);
   });
 });

@@ -65,23 +65,24 @@ export interface CompanionLine {
   plyIndex: number;
   speaker: Speaker;
   kind: BeatKind;
-  /** What she says. ≤ 12 words whenever `speak` is true. */
+  /** What she says. Kept under the headline budget below. */
   text: string;
-  /** The long version: shown when the bubble is tapped, never spoken. */
+  /** The long version, shown when the bubble is tapped. */
   more?: string;
   /** Shown on a move record. */
   san?: string;
   deco?: Deco;
   actions?: LineAction[];
   priority: Priority;
-  speak: boolean;
   /** Suppresses a near-repeat within the recent window ("nothing-hanging"). */
   dedupeKey?: string;
   tone?: Tone;
 }
 
-/** The spoken-word budget. A line longer than this is unbearable read aloud. */
-export const MAX_SPOKEN_WORDS = 12;
+/** Headline budget. This began as a limit on what was bearable read aloud; the
+ *  voice is gone but the constraint is what keeps her lines short enough to take
+ *  in at a glance on a phone, so it stays. */
+export const MAX_HEADLINE_WORDS = 12;
 
 export function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;

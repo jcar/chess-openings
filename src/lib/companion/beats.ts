@@ -9,7 +9,7 @@ import { missingGoals } from "@/lib/setup/plan";
 import type { SetupProgress } from "@/lib/setup/progress";
 import { anticipate } from "./anticipate";
 import type { TrainEvent } from "./events";
-import { MAX_SPOKEN_WORDS, wordCount, type BeatKind, type CompanionLine, type Priority, type Tone } from "./types";
+import { type BeatKind, type CompanionLine, type Priority, type Tone } from "./types";
 
 export interface BeatContext {
   spec: OpeningSpec;
@@ -28,12 +28,9 @@ interface Draft {
   dedupeKey?: string;
   actions?: CompanionLine["actions"];
   deco?: CompanionLine["deco"];
-  /** Force speech off even when the line is short enough. */
-  silent?: boolean;
 }
 
-/** Her lines. Speech is refused automatically when a line runs long — the budget
- *  is a property of the line, not a thing anyone has to remember. */
+/** Her lines. */
 function caissa(plyIndex: number, d: Draft): CompanionLine {
   return {
     id: `${plyIndex}:${d.kind}${d.key ? `:${d.key}` : ""}`,
@@ -47,7 +44,6 @@ function caissa(plyIndex: number, d: Draft): CompanionLine {
     dedupeKey: d.dedupeKey,
     actions: d.actions,
     deco: d.deco,
-    speak: !d.silent && wordCount(d.text) <= MAX_SPOKEN_WORDS,
   };
 }
 
@@ -60,7 +56,6 @@ function record(plyIndex: number, speaker: "you" | "them", san: string, tone?: T
     text: san,
     san,
     priority: 2,
-    speak: false,
     tone,
     actions: [{ kind: "jump", label: san, index: plyIndex - 1 }],
   };
@@ -141,7 +136,6 @@ export function eventToLines(e: TrainEvent, ctx: BeatContext): CompanionLine[] {
             kind: "step_continue",
             text: "Ready?",
             priority: 1,
-            silent: true,
             actions: [{ kind: "continue", label: "Continue" }],
           }),
         );

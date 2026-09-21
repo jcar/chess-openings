@@ -12,11 +12,9 @@ export type Chattiness = "quiet" | "normal" | "chatty";
 
 export interface CompanionPrefs {
   chattiness: Chattiness;
-  /** Voice on by default — it is most of what makes her a companion. */
-  voice: boolean;
 }
 
-export const companionStore = createLocalStore<CompanionPrefs>("openinglab:companion:v1", { chattiness: "normal", voice: true });
+export const companionStore = createLocalStore<CompanionPrefs>("openinglab:companion:v1", { chattiness: "normal" });
 
 /** The highest priority number she'll volunteer at each setting. Urgent (0) is
  *  never suppressed: quiet means "don't narrate", not "don't warn". */

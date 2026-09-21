@@ -6,7 +6,7 @@ import { judge } from "@/lib/coach/classify";
 import { explainBotMove, explainUserMove, firedIdeas } from "@/lib/coach/explain";
 import { describeMove, tagMove, type PlyRecord } from "@/lib/coach/features";
 import { setupProgress } from "@/lib/setup/progress";
-import { MAX_SPOKEN_WORDS, wordCount } from "@/lib/companion/types";
+import { MAX_HEADLINE_WORDS, wordCount } from "@/lib/companion/types";
 
 const italian = getOpening("italian-game")!;
 const book = new MergedBook(italian, null, null);
@@ -78,7 +78,7 @@ describe("explainUserMove layering", () => {
     // Structural, not a quote: the phrasing is Caissa's to change, but the
     // headline must still be about the queen and short enough to say out loud.
     expect(msg.headline).toMatch(/queen/i);
-    expect(wordCount(msg.headline)).toBeLessThanOrEqual(MAX_SPOKEN_WORDS);
+    expect(wordCount(msg.headline)).toBeLessThanOrEqual(MAX_HEADLINE_WORDS);
     expect(msg.bestSan).toBe("exd5");
   });
   it("engine-only fallback when nothing else explains a bad move", () => {
@@ -116,7 +116,7 @@ describe("explainBotMove", () => {
     expect(msg.tag).toBe("hangs_piece");
     expect(msg.headline).toContain("knight"); // the piece and square come from the position
     expect(msg.headline).toContain("e4");
-    expect(wordCount(msg.headline)).toBeLessThanOrEqual(MAX_SPOKEN_WORDS);
+    expect(wordCount(msg.headline)).toBeLessThanOrEqual(MAX_HEADLINE_WORDS);
     expect(msg.bestSan).toBe("Nxe4");
   });
 });

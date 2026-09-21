@@ -62,7 +62,7 @@ export function CompanionLineView({
   const choices = (line.actions ?? []).filter((a) => a.kind !== "jump");
   const stacked = choices.length > 2 || choices.some((a) => a.label.length > 16);
   return (
-    <div className="flex items-start gap-2" data-beat={line.kind} data-spoken={line.speak ? "true" : "false"}>
+    <div className="flex items-start gap-2" data-beat={line.kind}>
       <CaissaAvatar status={line.priority === 0 ? "alert" : "idle"} size={26} />
       <div className={`min-w-0 flex-1 rounded-2xl border bg-card px-3 py-2 ${TONE_EDGE[tone]}`}>
         {expandable ? (

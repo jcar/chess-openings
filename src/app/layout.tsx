@@ -4,7 +4,6 @@ import "./globals.css";
 import { withBasePath } from "@/lib/basePath";
 import { Dock } from "@/components/nav/Dock";
 import { SwRegister } from "@/components/SwRegister";
-import { AudioPrimer } from "@/components/audio/AudioPrimer";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" });
 const bricolage = Bricolage_Grotesque({ variable: "--font-bricolage", subsets: ["latin"], weight: ["600", "700", "800"], display: "swap" });
@@ -38,7 +37,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="min-h-full bg-bg text-ink">
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
         <SwRegister />
-        <AudioPrimer />
         <div className="flex min-h-dvh flex-col">
           <main className="relative min-w-0 flex-1 overflow-x-hidden pt-[env(safe-area-inset-top)] pb-[calc(env(safe-area-inset-bottom)+4.5rem)]">
             {children}

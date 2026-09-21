@@ -11,7 +11,7 @@ import { Chess } from "chess.js";
 import { getOpening } from "@/content";
 import { MergedBook } from "@/lib/book/merged";
 import { eventToLines, type BeatContext } from "@/lib/companion/beats";
-import { MAX_SPOKEN_WORDS, wordCount } from "@/lib/companion/types";
+import { MAX_HEADLINE_WORDS, wordCount } from "@/lib/companion/types";
 
 const london = getOpening("london-system")!;
 const ctx: BeatContext = { spec: london, recurring: [], lastSession: null };
@@ -28,7 +28,7 @@ describe("leaving the book says who did it", () => {
     expect(line.kind).toBe("book_end");
     expect(line.text).toContain("c6");
     expect(line.text).toMatch(/doesn't change your plan/i);
-    expect(wordCount(line.text)).toBeLessThanOrEqual(MAX_SPOKEN_WORDS);
+    expect(wordCount(line.text)).toBeLessThanOrEqual(MAX_HEADLINE_WORDS);
     expect(line.more).toMatch(/norm rather than the exception/i);
   });
 
@@ -38,13 +38,13 @@ describe("leaving the book says who did it", () => {
     expect(line.more).toContain("Nf3");
     // Explicitly not a verdict — the judgement line is a separate beat.
     expect(line.more).toMatch(/isn't necessarily worse/i);
-    expect(wordCount(line.text)).toBeLessThanOrEqual(MAX_SPOKEN_WORDS);
+    expect(wordCount(line.text)).toBeLessThanOrEqual(MAX_HEADLINE_WORDS);
   });
 
   it("says so when the game transposes back in", () => {
     const [line] = eventToLines({ t: "book_resumed", plyIndex: 6 }, ctx);
     expect(line.kind).toBe("book_resumed");
-    expect(wordCount(line.text)).toBeLessThanOrEqual(MAX_SPOKEN_WORDS);
+    expect(wordCount(line.text)).toBeLessThanOrEqual(MAX_HEADLINE_WORDS);
   });
 
   it("never dumps the whole middlegame plan into one bubble", () => {
