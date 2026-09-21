@@ -664,3 +664,32 @@ test("the setup counter never goes backwards", async ({ page }) => {
   await expect(page.getByRole("button", { name: /3 of 8 setup goals/ })).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole("button", { name: /2 of 8 setup goals/ })).toHaveCount(0);
 });
+
+test("the opening list leads with words, not notation", async ({ page }) => {
+  await page.goto("/", { waitUntil: "networkidle" });
+
+  // Grouped by the only question behind "what do I pick?".
+  await expect(page.getByRole("heading", { name: "When you're White" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "When you're Black" })).toBeVisible();
+
+  const london = page.getByRole("link", { name: /London System/ }).first();
+  await expect(london).toContainText("The same eight moves against almost anything");
+  // The move list is a lookup key, not a description. It lives on the
+  // opening's own page now.
+  await expect(london).not.toContainText("1.d4 d5 2.Nf3");
+  await expect(page.getByText(/^1\.[ed]4 /)).toHaveCount(0);
+
+  // The twenty-one extras are folded away rather than padding the page.
+  const more = page.getByText(/^\d+ more/).first(); // the White group's extras
+  await expect(more).toBeVisible();
+  await expect(page.getByRole("link", { name: "English Opening" })).toHaveCount(0);
+  await more.click();
+  await expect(page.getByRole("link", { name: "English Opening" })).toBeVisible();
+});
+
+test("the openings index says the same thing the home page does", async ({ page }) => {
+  await page.goto("/openings/", { waitUntil: "networkidle" });
+  const row = page.getByRole("link", { name: /London System/ }).first();
+  await expect(row).toContainText(/The same eight moves/);
+  await expect(page.getByText(/^1\.d4 d5 2\.Nf3/)).toHaveCount(0);
+});

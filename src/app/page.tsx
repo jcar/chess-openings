@@ -4,23 +4,11 @@ import type { OpeningSpec } from "@/content/spec";
 import { RatingChip } from "@/components/RatingChip";
 import { ResumeCard } from "@/components/ResumeCard";
 
-/** The side you play, as a board square rather than a sentence. "You play White"
- *  set on every card was wider than the opening's own name. */
-function SideMark({ side }: { side: OpeningSpec["side"] }) {
-  const white = side === "white";
-  return (
-    <span
-      aria-label={white ? "You play White" : "You play Black"}
-      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[3px] text-[11px] font-bold"
-      style={{
-        background: white ? "var(--board-light)" : "var(--board-dark)",
-        color: white ? "#16243b" : "#0b1424",
-      }}
-    >
-      {white ? "W" : "B"}
-    </span>
-  );
-}
+/** The opening's own first sentence, in full. Every spec carries two sentences
+ *  written for a player under 1200; the card used to lead with the move list in
+ *  monospace and clip this to two lines, which is backwards. Notation is a
+ *  lookup key, not a description. */
+const summary = (o: OpeningSpec) => o.pitch.split(/(?<=\.)\s/)[0];
 
 function OpeningCard({ o }: { o: OpeningSpec }) {
   return (
@@ -29,17 +17,40 @@ function OpeningCard({ o }: { o: OpeningSpec }) {
       className="block rounded-2xl border border-line bg-card p-4 shadow-[0_1px_0_rgba(255,255,255,0.04)] transition active:scale-[0.99]"
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-display text-lg font-bold leading-tight">{o.name}</div>
-          <div className="mt-1 font-mono text-xs text-ink-soft">{o.firstMoves}</div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <RatingChip openingId={o.id} />
-          <SideMark side={o.side} />
-        </div>
+        <div className="font-display text-lg font-bold leading-tight">{o.name}</div>
+        <RatingChip openingId={o.id} />
       </div>
-      <p className="mt-3 line-clamp-2 text-sm leading-snug text-ink-soft">{o.pitch}</p>
+      <p className="mt-1.5 text-[15px] leading-snug text-ink-soft">{summary(o)}</p>
     </Link>
+  );
+}
+
+/** Which side you play is the only question behind "what should I pick?", so it
+ *  organises the page instead of being a badge on every card. */
+function SideSection({ heading, list, rest }: { heading: string; list: OpeningSpec[]; rest: OpeningSpec[] }) {
+  return (
+    <section className="mt-6">
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-ink-soft">{heading}</h2>
+      <div className="flex flex-col gap-3">
+        {list.map((o) => (
+          <OpeningCard key={o.id} o={o} />
+        ))}
+      </div>
+      {rest.length > 0 && (
+        <details className="mt-3">
+          <summary className="min-h-[44px] cursor-pointer list-none py-3 text-sm font-semibold text-primary-strong">
+            {rest.length} more ▾
+          </summary>
+          <div className="flex flex-col divide-y divide-line rounded-2xl border border-line bg-card">
+            {rest.map((o) => (
+              <Link key={o.id} href={`/train/${o.id}/`} className="flex min-h-[52px] items-center px-4 py-3 font-semibold leading-tight">
+                {o.name}
+              </Link>
+            ))}
+          </div>
+        </details>
+      )}
+    </section>
   );
 }
 
@@ -57,7 +68,7 @@ export default function Home() {
 
       <Link
         href="/principles/"
-        className="mb-5 flex min-h-[56px] items-center gap-3 rounded-2xl border border-sage/40 bg-sage/10 px-4 py-3 active:scale-[0.99]"
+        className="mb-2 flex min-h-[56px] items-center gap-3 rounded-2xl border border-sage/40 bg-sage/10 px-4 py-3 active:scale-[0.99]"
       >
         <div className="min-w-0 flex-1">
           <div className="font-display text-[15px] font-bold leading-tight">Principles Mode</div>
@@ -66,33 +77,16 @@ export default function Home() {
         <span aria-hidden className="shrink-0 text-sage">→</span>
       </Link>
 
-      <section aria-labelledby="core">
-        <h2 id="core" className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-ink-soft">
-          Start here
-        </h2>
-        <div className="flex flex-col gap-3">
-          {core.map((o) => (
-            <OpeningCard key={o.id} o={o} />
-          ))}
-        </div>
-      </section>
-
-      <section aria-labelledby="more" className="mt-8">
-        <h2 id="more" className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-ink-soft">
-          More openings
-        </h2>
-        <div className="flex flex-col divide-y divide-line rounded-2xl border border-line bg-card">
-          {rest.map((o) => (
-            <Link key={o.id} href={`/train/${o.id}/`} className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <div className="font-semibold leading-tight">{o.name}</div>
-                <div className="font-mono text-[11px] text-ink-soft">{o.firstMoves}</div>
-              </div>
-              <SideMark side={o.side} />
-            </Link>
-          ))}
-        </div>
-      </section>
+      <SideSection
+        heading="When you're White"
+        list={core.filter((o) => o.side === "white")}
+        rest={rest.filter((o) => o.side === "white")}
+      />
+      <SideSection
+        heading="When you're Black"
+        list={core.filter((o) => o.side === "black")}
+        rest={rest.filter((o) => o.side === "black")}
+      />
     </div>
   );
 }

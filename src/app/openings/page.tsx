@@ -29,7 +29,11 @@ export default function OpeningsIndex() {
                       {o.name}
                       {isCore(o.id) && <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-strong">core</span>}
                     </div>
-                    <div className="font-mono text-[11px] text-ink-soft">{o.firstMoves}</div>
+                    {/* The move list used to sit here. It is the least readable
+                        thing we can show someone under 1200, and the same claim
+                        is made on the home page — both pages now lead with
+                        words. The moves are on the opening's own page. */}
+                    <div className="truncate text-xs text-ink-soft">{o.pitch.split(/(?<=\.)\s/)[0]}</div>
                   </div>
                   <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">{o.side}</span>
                 </Link>
