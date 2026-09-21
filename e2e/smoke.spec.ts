@@ -679,17 +679,27 @@ test("the opening list leads with words, not notation", async ({ page }) => {
   await expect(london).not.toContainText("1.d4 d5 2.Nf3");
   await expect(page.getByText(/^1\.[ed]4 /)).toHaveCount(0);
 
-  // The twenty-one extras are folded away rather than padding the page.
-  const more = page.getByText(/^\d+ more/).first(); // the White group's extras
-  await expect(more).toBeVisible();
-  await expect(page.getByRole("link", { name: "English Opening" })).toHaveCount(0);
-  await more.click();
-  await expect(page.getByRole("link", { name: "English Opening" })).toBeVisible();
+  // Home answers "what should I play?" and stops there. The rest of the
+  // catalogue is a tap away rather than a list of bare titles.
+  await expect(page.getByRole("link", { name: /English Opening/ })).toHaveCount(0);
+  await page.getByRole("link", { name: /Browse all \d+ openings/ }).click();
+  await expect(page).toHaveURL(/\/openings\/?$/);
 });
 
-test("the openings index says the same thing the home page does", async ({ page }) => {
+test("the catalogue says what each group actually gives you", async ({ page }) => {
   await page.goto("/openings/", { waitUntil: "networkidle" });
-  const row = page.getByRole("link", { name: /London System/ }).first();
-  await expect(row).toContainText(/The same eight moves/);
+
+  await expect(page.getByRole("heading", { name: /Coached in depth/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Lighter coaching/ })).toBeVisible();
+  // The split is explained rather than left to be guessed at, and it does not
+  // claim the lighter group is less important.
+  await expect(page.getByText(/no setup plan to track/)).toBeVisible();
+  await expect(page.getByText(/Not lesser openings/)).toBeVisible();
+
+  // Every row carries a summary, including the lighter ones. Bare titles were
+  // the complaint that started this.
+  await expect(page.getByRole("link", { name: /London System/ }).first()).toContainText(/The same eight moves/);
+  await expect(page.getByRole("link", { name: /Ruy Lopez/ }).first()).toContainText(/oldest and most deeply respected/);
+  await expect(page.getByRole("link", { name: /Sicilian Defence/ }).first()).not.toHaveText(/^Sicilian Defence$/);
   await expect(page.getByText(/^1\.d4 d5 2\.Nf3/)).toHaveCount(0);
 });

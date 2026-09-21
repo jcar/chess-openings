@@ -27,7 +27,7 @@ function OpeningCard({ o }: { o: OpeningSpec }) {
 
 /** Which side you play is the only question behind "what should I pick?", so it
  *  organises the page instead of being a badge on every card. */
-function SideSection({ heading, list, rest }: { heading: string; list: OpeningSpec[]; rest: OpeningSpec[] }) {
+function SideSection({ heading, list }: { heading: string; list: OpeningSpec[] }) {
   return (
     <section className="mt-6">
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-ink-soft">{heading}</h2>
@@ -36,20 +36,6 @@ function SideSection({ heading, list, rest }: { heading: string; list: OpeningSp
           <OpeningCard key={o.id} o={o} />
         ))}
       </div>
-      {rest.length > 0 && (
-        <details className="mt-3">
-          <summary className="min-h-[44px] cursor-pointer list-none py-3 text-sm font-semibold text-primary-strong">
-            {rest.length} more ▾
-          </summary>
-          <div className="flex flex-col divide-y divide-line rounded-2xl border border-line bg-card">
-            {rest.map((o) => (
-              <Link key={o.id} href={`/train/${o.id}/`} className="flex min-h-[52px] items-center px-4 py-3 font-semibold leading-tight">
-                {o.name}
-              </Link>
-            ))}
-          </div>
-        </details>
-      )}
     </section>
   );
 }
@@ -77,16 +63,18 @@ export default function Home() {
         <span aria-hidden className="shrink-0 text-sage">→</span>
       </Link>
 
-      <SideSection
-        heading="When you're White"
-        list={core.filter((o) => o.side === "white")}
-        rest={rest.filter((o) => o.side === "white")}
-      />
-      <SideSection
-        heading="When you're Black"
-        list={core.filter((o) => o.side === "black")}
-        rest={rest.filter((o) => o.side === "black")}
-      />
+      <SideSection heading="When you're White" list={core.filter((o) => o.side === "white")} />
+      <SideSection heading="When you're Black" list={core.filter((o) => o.side === "black")} />
+
+      {/* Home answers "what should I play?". The rest of the catalogue is one
+          tap away rather than folded into a list of bare titles. */}
+      <Link href="/openings/" className="mt-6 flex min-h-[56px] items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3 active:scale-[0.99]">
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold leading-tight">Browse all {core.length + rest.length} openings</div>
+          <p className="text-xs text-ink-soft">Including {rest.length} with lighter coaching.</p>
+        </div>
+        <span aria-hidden className="shrink-0 text-ink-soft">›</span>
+      </Link>
     </div>
   );
 }
