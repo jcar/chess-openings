@@ -141,22 +141,23 @@ function obeyingOrderRules(ctx: PromptContext, bestUci: string): HintStep | null
       /* try the next alternative */
     }
   }
-  return { text: `Not yet: ${broken.why}` };
+  // Nothing the rule wants is legal yet. A hint that names no move at all is
+  // not a hint, so name the one to hold back and why.
+  return { text: `Hold off on ${orMoves(broken.after)} — ${broken.why}` };
 }
+
+/** "Bf5|Bg4" is authoring syntax for alternatives, never something to show. */
+const orMoves = (alts: string) => alts.split("|").map((a) => a.trim()).filter(Boolean).join(" or ");
 
 export function moveHint(ctx: PromptContext, bestUci: string | null): HintStep | null {
   const { spec, fen, setup } = ctx;
   if (!bestUci) return { text: "The coach is still checking this position — try again in a moment." };
 
-  // The engine does not know the opening's order rules, so its best move can be
-  // one the trainer will stop you for playing. Suggesting it and then punishing
-  // it is the worst thing this app can do, so the rule wins.
-  const lawful = obeyingOrderRules(ctx, bestUci);
-  if (lawful) return lawful;
-
-  // This is an opening trainer. When the book names a move here, that is the
-  // hint — otherwise the hint can send you somewhere the book does not cover and
-  // the app then reports you for leaving it.
+  // This is an opening trainer, so the book's move is the hint. It goes FIRST:
+  // it cannot break its own opening's rules, and putting the rule check ahead of
+  // it meant that after 1.e4 in the Scandinavian — where the book plainly says
+  // ...d5 — the engine's preference for ...e6 tripped the rule and the player
+  // got a refusal instead of the move.
   const booked = spec.annotations[epd(fen)]?.yourMove;
   if (booked) {
     try {
@@ -164,9 +165,14 @@ export function moveHint(ctx: PromptContext, bestUci: string | null): HintStep |
       const played = probe.move(booked.san);
       return { text: `${played.san} — ${booked.why}`, from: played.from as Square, to: played.to as Square };
     } catch {
-      /* the authored move isn't legal here; fall through to the engine */
+      /* the authored move isn't legal here; fall through */
     }
   }
+
+  // Off the book, the engine does not know the opening's order rules, so its
+  // best move can be one the trainer would stop you for playing.
+  const lawful = obeyingOrderRules(ctx, bestUci);
+  if (lawful) return lawful;
 
   const from = bestUci.slice(0, 2) as Square;
   const to = bestUci.slice(2, 4) as Square;

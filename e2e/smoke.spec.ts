@@ -703,3 +703,19 @@ test("the catalogue says what each group actually gives you", async ({ page }) =
   await expect(page.getByRole("link", { name: /Sicilian Defence/ }).first()).not.toHaveText(/^Sicilian Defence$/);
   await expect(page.getByText(/^1\.d4 d5 2\.Nf3/)).toHaveCount(0);
 });
+
+test("the very first hint of a game names a move", async ({ page }) => {
+  // Reported: playing the Scandinavian as Black, White opens 1.e4, and the
+  // first thing a new player does is press Hint. It answered with a refusal
+  // that named no move at all.
+  await useScriptedEngine(page, ["e2e4"]);
+  await page.goto("/train/scandinavian/");
+  await expect(page.getByRole("button", { name: "Their move e4" })).toBeVisible({ timeout: 15_000 });
+
+  await page.getByRole("button", { name: /Hint/ }).click();
+  const hint = page.locator('[data-beat="hint"]');
+  await expect(hint).toBeVisible({ timeout: 10_000 });
+  await expect(hint).toContainText(/d5 — Challenge e4 at once/);
+  await expect(hint).not.toContainText(/Not yet/);
+  await expect(hint).not.toContainText("|");
+});

@@ -294,7 +294,6 @@ describe("the hint never suggests a move the trainer will punish", () => {
     const hint = moveHint({ spec: caro, book: caroBook, fen: g.fen(), setup, leftBook: true, firedIdeas: [], history: h }, "e7e6");
     expect(hint).not.toBeNull();
     expect(hint!.text).toMatch(/^Bf5/); // the rule's own move, not the engine's
-    expect(hint!.text).toMatch(/locked-in bishop|before \.\.\.e6/);
     expect(hint!.to).toBe("f5");
   });
 
@@ -490,4 +489,58 @@ describe("setup goals record what you achieved, not what survived", () => {
     // White's e-pawn captured onto d5 and later vanished; the d4 push happened.
     expect(setupProgress(g.fen(), london.setup, "white", h).pawns.find((x) => x.square === "d4")!.done).toBe(true);
   });
+});
+
+describe("the first hint of a game always names a move", () => {
+  const at = (spec: ReturnType<typeof getOpening>, line: string) => {
+    const g = new Chess();
+    const h: PlyRecord[] = [];
+    for (const san of line.trim().split(/\s+/).filter(Boolean)) {
+      const m = g.move(san);
+      h.push({ san: m.san, uci: m.from + m.to, color: m.color === "w" ? "white" : "black" });
+    }
+    return { g, h, setup: setupProgress(g.fen(), spec!.setup, spec!.side, h) };
+  };
+
+  it("hints ...d5 in the Scandinavian, not a refusal", () => {
+    // The baked evaluation prefers ...e6 here, which breaks the bishop rule and
+    // whose required move is not legal on move one. That produced "Not yet:"
+    // with no move in it — the first thing a new player ever saw.
+    const spec = getOpening("scandinavian")!;
+    const { g, h, setup } = at(spec, "e4");
+    const hint = moveHint({ spec, book: new MergedBook(spec, null, null), fen: g.fen(), setup, leftBook: false, firedIdeas: [], history: h }, "e7e6");
+    expect(hint!.text).toMatch(/^d5 —/);
+    expect(hint!.to).toBe("d5");
+    expect(hint!.text).not.toMatch(/Not yet/);
+  });
+
+  it("hints ...c6 in the Caro-Kann, the other opening this broke", () => {
+    const spec = getOpening("caro-kann")!;
+    const { g, h, setup } = at(spec, "e4");
+    const hint = moveHint({ spec, book: new MergedBook(spec, null, null), fen: g.fen(), setup, leftBook: false, firedIdeas: [], history: h }, "e7e6");
+    expect(hint!.text).toMatch(/^c6 —/);
+  });
+
+  it("every hint along an opening's own line names a move", () => {
+    for (const spec of [getOpening("scandinavian")!, getOpening("caro-kann")!, getOpening("london-system")!, getOpening("italian-game")!]) {
+      const g = new Chess();
+      const h: PlyRecord[] = [];
+      const sans = spec.firstMoves.trim().split(/\s+/).map((t) => t.replace(/^\d+\.(\.\.)?/, "")).filter(Boolean);
+      for (const san of [...sans, ""]) {
+        if ((g.turn() === "w" ? "white" : "black") === spec.side) {
+          const setup = setupProgress(g.fen(), spec.setup, spec.side, h);
+          // Hand it the move the engine most often wants here, which is the one
+          // that used to trip the rule.
+          const hint = moveHint({ spec, book: new MergedBook(spec, null, null), fen: g.fen(), setup, leftBook: false, firedIdeas: [], history: h }, "e7e6");
+          expect(hint, `${spec.id} after ${h.map((p) => p.san).join(" ")}`).not.toBeNull();
+          expect(hint!.text, `${spec.id} after ${h.map((p) => p.san).join(" ")}`).toMatch(/^(O-O(-O)?|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8])/);
+          expect(hint!.text, "authoring syntax must never reach the player").not.toContain("|");
+        }
+        if (!san) break;
+        const m = g.move(san);
+        h.push({ san: m.san, uci: m.from + m.to, color: m.color === "w" ? "white" : "black" });
+      }
+    }
+  });
+
 });
