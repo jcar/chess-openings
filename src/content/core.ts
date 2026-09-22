@@ -11,6 +11,7 @@ export const CORE_OPENING_IDS = [
   "open-games-black",
   "slav-defence",
   "kings-indian",
+  "larsen",
 ] as const;
 
 export type CoreOpeningId = (typeof CORE_OPENING_IDS)[number];

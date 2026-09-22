@@ -544,3 +544,79 @@ describe("the first hint of a game always names a move", () => {
   });
 
 });
+
+describe("Larsen's Opening is coached to the same standard", () => {
+  const larsen = getOpening("larsen")!;
+  const larsenBook = new MergedBook(larsen, null, null);
+
+  const play = (line: string) => {
+    const g = new Chess();
+    const h: PlyRecord[] = [];
+    for (const s of line.trim().split(/\s+/).filter(Boolean)) {
+      const m = g.move(s);
+      h.push({ san: m.san, uci: m.from + m.to, color: m.color === "w" ? "white" : "black" });
+    }
+    return { g, h };
+  };
+  const verdict = (line: string, san: string) => {
+    const { g, h } = play(line);
+    const fenBefore = g.fen();
+    const m = g.move(san);
+    const uci = m.from + m.to;
+    const move = describeMove(fenBefore, uci)!;
+    return explainUserMove({
+      spec: larsen, book: larsenBook, fenBefore, fenAfter: g.fen(), move, history: h,
+      tags: tagMove(fenBefore, g.fen(), move, h), judgement: judge(20, -20, false), bestUci: null,
+      setupBefore: setupProgress(fenBefore, larsen.setup, "white", h),
+      setupAfter: setupProgress(g.fen(), larsen.setup, "white", [...h, { san: m.san, uci, color: "white" }]),
+      verbosity: "normal" as const, inOpening: true,
+    });
+  };
+
+  it("carries everything the other coached openings carry", () => {
+    expect(larsen.setup.pieces.length).toBeGreaterThanOrEqual(4);
+    expect(larsen.setup.order?.length).toBeGreaterThanOrEqual(1);
+    expect(larsen.traps.length).toBeGreaterThanOrEqual(2);
+    expect(larsen.ideas.length).toBeGreaterThanOrEqual(5);
+    expect(Object.keys(larsen.annotations).length).toBeGreaterThanOrEqual(12);
+    expect(larsen.structureDiagram).toBeTruthy();
+  });
+
+  it("hints its own first move", () => {
+    const { g } = play("");
+    const hint = moveHint(
+      { spec: larsen, book: larsenBook, fen: g.fen(), setup: setupProgress(g.fen(), larsen.setup, "white", []), leftBook: false, firedIdeas: [], history: [] },
+      "e2e4",
+    );
+    expect(hint!.text).toMatch(/^b3 —/);
+  });
+
+  it("stops the game for d4, which entombs the bishop the opening is built on", () => {
+    const v = verdict("b3 e5 Bb2 Nc6", "d4");
+    expect(v.pause).toBe(true);
+    expect(v.body).toMatch(/blocks the bishop|in front of your own bishop/i);
+  });
+
+  it("stops the game for the greedy Bxe5", () => {
+    const v = verdict("b3 e5 Bb2 Nc6", "Bxe5");
+    expect(v.pause).toBe(true);
+    expect(v.body).toMatch(/bishop for a pawn/i);
+  });
+
+  it("praises the book move", () => {
+    expect(verdict("b3 e5 Bb2 Nc6 e3 Nf6", "Bb5").kind).toBe("praise");
+  });
+
+  it("reaches a complete setup in a normal game", () => {
+    const { g, h } = play("b3 e5 Bb2 Nc6 e3 Nf6 Bb5 Bd6 Nf3 O-O O-O Re8 c4 a6 Nc3 h6");
+    const sp = setupProgress(g.fen(), larsen.setup, "white", h);
+    expect(sp.met).toBe(sp.total);
+    expect(sp.orderViolations).toHaveLength(0);
+  });
+
+  it("flags d4 played before c4 as the wrong order", () => {
+    const { g, h } = play("b3 e5 Bb2 Nc6 e3 Nf6 Bb5 Bd6 d4");
+    const sp = setupProgress(g.fen(), larsen.setup, "white", h);
+    expect(sp.orderViolations.map((v) => `${v.after} before ${v.before}`)).toContain("d4 before c4");
+  });
+});

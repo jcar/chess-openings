@@ -38,5 +38,9 @@
   "kings-indian": {
     "nodes": 500,
     "bakedAt": "2026-09-13T01:07:41.174Z"
+  },
+  "larsen": {
+    "nodes": 500,
+    "bakedAt": "2026-09-22T03:38:37.428Z"
   }
 }

@@ -10,5 +10,6 @@ import { frenchDefence } from "./french-defence";
 import { slavDefence } from "./slav-defence";
 import { kingsIndian } from "./kings-indian";
 import { openGamesBlack } from "./open-games-black";
+import { larsenOpening } from "./larsen";
 
-export const SPECS: OpeningSpec[] = [italianGame, londonSystem, viennaGame, scandinavian, queensGambit, caroKann, frenchDefence, slavDefence, kingsIndian, openGamesBlack];
+export const SPECS: OpeningSpec[] = [italianGame, londonSystem, viennaGame, scandinavian, queensGambit, caroKann, frenchDefence, slavDefence, kingsIndian, openGamesBlack, larsenOpening];

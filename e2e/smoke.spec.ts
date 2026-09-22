@@ -719,3 +719,36 @@ test("the very first hint of a game names a move", async ({ page }) => {
   await expect(hint).not.toContainText(/Not yet/);
   await expect(hint).not.toContainText("|");
 });
+
+test("Larsen's Opening is coached like the rest", async ({ page }) => {
+  await useScriptedEngine(page, ["e7e5", "b8c6", "g8f6"]);
+  await page.goto("/train/larsen/");
+  await move(page, "b2", "b3");
+  await expect(page.getByRole("button", { name: "Their move e5" })).toBeVisible({ timeout: 10_000 });
+  await move(page, "c1", "b2");
+  await expect(page.getByRole("button", { name: "Their move Nc6" })).toBeVisible({ timeout: 10_000 });
+
+  // The plan chip tracks a real setup, which the lighter openings have none of.
+  await expect(page.getByRole("button", { name: /of 7 setup goals/ })).toBeVisible();
+
+  // d4 buries the bishop the whole opening exists for, so it stops the game.
+  await move(page, "d2", "d4");
+  const stop = page.locator('[data-testid="stop-down"]');
+  await expect(stop).toBeVisible({ timeout: 10_000 });
+  await expect(stop).toContainText(/d4/);
+  await stop.getByRole("button", { name: /Take it back/ }).click();
+
+  await move(page, "e2", "e3");
+  await expect(page.getByRole("button", { name: "Their move Nf6" })).toBeVisible({ timeout: 10_000 });
+});
+
+test("Larsen appears as a coached opening, not a lighter one", async ({ page }) => {
+  await page.goto("/", { waitUntil: "networkidle" });
+  const card = page.getByRole("link", { name: /Larsen's Opening/ }).first();
+  await expect(card).toBeVisible();
+  await expect(card).toContainText(/One bishop decides this opening/);
+
+  await page.goto("/openings/", { waitUntil: "networkidle" });
+  const coached = page.getByRole("heading", { name: /Coached in depth/ });
+  await expect(coached).toContainText("11");
+});
