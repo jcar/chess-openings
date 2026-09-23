@@ -42,5 +42,89 @@
   "larsen": {
     "nodes": 500,
     "bakedAt": "2026-09-22T03:38:37.428Z"
+  },
+  "four-knights": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T01:52:21.661Z"
+  },
+  "kings-gambit": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T02:12:08.849Z"
+  },
+  "petroff": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T02:29:35.784Z"
+  },
+  "ruy-lopez": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T02:41:48.968Z"
+  },
+  "scotch-game": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T02:48:51.880Z"
+  },
+  "alapin-sicilian": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T03:05:23.854Z"
+  },
+  "alekhine": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T03:24:24.872Z"
+  },
+  "pirc": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T03:40:47.946Z"
+  },
+  "sicilian-defence": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T03:59:17.731Z"
+  },
+  "benko-gambit": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T04:12:19.658Z"
+  },
+  "benoni": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T04:20:49.101Z"
+  },
+  "bogo-indian": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T04:31:13.336Z"
+  },
+  "dutch-defence": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T04:44:00.301Z"
+  },
+  "grunfeld": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T04:51:26.051Z"
+  },
+  "nimzo-indian": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T04:58:28.864Z"
+  },
+  "queens-gambit-accepted": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T05:10:30.376Z"
+  },
+  "queens-gambit-declined": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T05:19:15.697Z"
+  },
+  "queens-indian": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T05:22:03.326Z"
+  },
+  "semi-slav": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T05:28:41.150Z"
+  },
+  "english-opening": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T05:46:32.862Z"
+  },
+  "reti": {
+    "nodes": 500,
+    "bakedAt": "2026-09-23T06:02:04.192Z"
   }
 }

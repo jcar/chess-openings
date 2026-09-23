@@ -62,11 +62,13 @@ export default function OpeningsIndex() {
         blurb="A setup to follow with the plan tracked move by move, the order rules that decide the opening, and the traps worth knowing."
         list={coached}
       />
-      <Group
-        title="Lighter coaching"
-        blurb="Real theory and the same opponent, but no setup plan to track and no traps flagged. Not lesser openings — these simply haven't been written up to the same depth yet."
-        list={lighter}
-      />
+      {lighter.length > 0 && (
+        <Group
+          title="Lighter coaching"
+          blurb="Real theory and the same opponent, but no setup plan to track and no traps flagged. Not lesser openings — these simply haven't been written up to the same depth yet."
+          list={lighter}
+        />
+      )}
     </div>
   );
 }

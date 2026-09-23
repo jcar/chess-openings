@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { coreOpenings, otherOpenings } from "@/content";
+import { OPENINGS, featuredOpenings } from "@/content";
 import type { OpeningSpec } from "@/content/spec";
 import { RatingChip } from "@/components/RatingChip";
 import { ResumeCard } from "@/components/ResumeCard";
@@ -41,8 +41,8 @@ function SideSection({ heading, list }: { heading: string; list: OpeningSpec[] }
 }
 
 export default function Home() {
-  const core = coreOpenings();
-  const rest = otherOpenings();
+  const core = featuredOpenings();
+  const others = OPENINGS.length - core.length;
   return (
     <div className="pb-dock mx-auto w-full max-w-lg px-4 pt-6">
       <header className="mb-4">
@@ -70,8 +70,8 @@ export default function Home() {
           tap away rather than folded into a list of bare titles. */}
       <Link href="/openings/" className="mt-6 flex min-h-[56px] items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3 active:scale-[0.99]">
         <div className="min-w-0 flex-1">
-          <div className="font-semibold leading-tight">Browse all {core.length + rest.length} openings</div>
-          <p className="text-xs text-ink-soft">Including {rest.length} with lighter coaching.</p>
+          <div className="font-semibold leading-tight">Browse all {OPENINGS.length} openings</div>
+          <p className="text-xs text-ink-soft">{others} more, every one coached the same way.</p>
         </div>
         <span aria-hidden className="shrink-0 text-ink-soft">›</span>
       </Link>

@@ -5,7 +5,7 @@
 import type { OpeningSpec } from "./spec";
 import { LEGACY_OPENINGS } from "./legacy";
 import { adaptLegacy } from "@/lib/content/adaptLegacy";
-import { CORE_OPENING_IDS, isCore } from "./core";
+import { CORE_OPENING_IDS, FEATURED_OPENING_IDS, isCore, isFeatured } from "./core";
 import { SPECS } from "./specs";
 
 const byId = new Map<string, OpeningSpec>();
@@ -31,6 +31,12 @@ export function coreOpenings(): OpeningSpec[] {
 
 export function otherOpenings(): OpeningSpec[] {
   return OPENINGS.filter((o) => !isCore(o.id));
+}
+
+/** The short list home recommends, in its own order. */
+export function featuredOpenings(): OpeningSpec[] {
+  const order = new Map<string, number>(FEATURED_OPENING_IDS.map((id, i) => [id, i]));
+  return OPENINGS.filter((o) => isFeatured(o.id)).sort((a, b) => order.get(a.id)! - order.get(b.id)!);
 }
 
 export type { OpeningSpec } from "./spec";

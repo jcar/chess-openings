@@ -690,11 +690,12 @@ test("the catalogue says what each group actually gives you", async ({ page }) =
   await page.goto("/openings/", { waitUntil: "networkidle" });
 
   await expect(page.getByRole("heading", { name: /Coached in depth/ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Lighter coaching/ })).toBeVisible();
-  // The split is explained rather than left to be guessed at, and it does not
-  // claim the lighter group is less important.
-  await expect(page.getByText(/no setup plan to track/)).toBeVisible();
-  await expect(page.getByText(/Not lesser openings/)).toBeVisible();
+  // The lighter group only appears while something is still in it, and when it
+  // does it is explained rather than left to be guessed at.
+  if (await page.getByRole("heading", { name: /Lighter coaching/ }).count()) {
+    await expect(page.getByText(/no setup plan to track/)).toBeVisible();
+    await expect(page.getByText(/Not lesser openings/)).toBeVisible();
+  }
 
   // Every row carries a summary, including the lighter ones. Bare titles were
   // the complaint that started this.
@@ -749,6 +750,10 @@ test("Larsen appears as a coached opening, not a lighter one", async ({ page }) 
   await expect(card).toContainText(/One bishop decides this opening/);
 
   await page.goto("/openings/", { waitUntil: "networkidle" });
+  // The heading's count matches the rows beneath it, whatever the number is.
   const coached = page.getByRole("heading", { name: /Coached in depth/ });
-  await expect(coached).toContainText("11");
+  const shown = Number((await coached.textContent())!.match(/\d+/)![0]);
+  const rows = await coached.locator("xpath=following-sibling::*//a").count();
+  expect(shown).toBeGreaterThanOrEqual(11);
+  expect(rows).toBe(shown);
 });
