@@ -21,7 +21,10 @@ import { nimzoIndian } from "./nimzo-indian";
 import { openGamesBlack } from "./open-games-black";
 import { petroff } from "./petroff";
 import { pirc } from "./pirc";
+import { queensGambitAccepted } from "./queens-gambit-accepted";
+import { queensGambitDeclined } from "./queens-gambit-declined";
 import { queensGambit } from "./queens-gambit";
+import { queensIndian } from "./queens-indian";
 import { reti } from "./reti";
 import { ruyLopez } from "./ruy-lopez";
 import { scandinavian } from "./scandinavian";
@@ -31,4 +34,4 @@ import { sicilianDefence } from "./sicilian-defence";
 import { slavDefence } from "./slav-defence";
 import { viennaGame } from "./vienna-game";
 
-export const SPECS: OpeningSpec[] = [alapinSicilian, alekhine, benkoGambit, benoni, bogoIndian, caroKann, dutchDefence, englishOpening, fourKnights, frenchDefence, grunfeld, italianGame, kingsGambit, kingsIndian, larsenOpening, londonSystem, nimzoIndian, openGamesBlack, petroff, pirc, queensGambit, reti, ruyLopez, scandinavian, scotchGame, semiSlav, sicilianDefence, slavDefence, viennaGame];
+export const SPECS: OpeningSpec[] = [alapinSicilian, alekhine, benkoGambit, benoni, bogoIndian, caroKann, dutchDefence, englishOpening, fourKnights, frenchDefence, grunfeld, italianGame, kingsGambit, kingsIndian, larsenOpening, londonSystem, nimzoIndian, openGamesBlack, petroff, pirc, queensGambitAccepted, queensGambitDeclined, queensGambit, queensIndian, reti, ruyLopez, scandinavian, scotchGame, semiSlav, sicilianDefence, slavDefence, viennaGame];
