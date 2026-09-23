@@ -3,6 +3,7 @@
 
 import type { EngineLike } from "@/lib/chess/stockfish";
 import type { MergedBook } from "@/lib/book/merged";
+import { hasScriptedEvals } from "@/lib/chess/scriptedEngine";
 
 export interface Evaluation {
   /** Centipawns for the side to move (mates saturated to ±10000). */
@@ -22,7 +23,10 @@ export interface EvalOptions {
 }
 
 export async function evaluate(book: MergedBook, fen: string, engine: EngineLike | null, opts: EvalOptions = {}): Promise<Evaluation | null> {
-  const baked = book.evalLines(fen);
+  // Baked tables win over the engine, except when a test has seeded engine
+  // scores: with every opening baked there is no position left where a test
+  // could otherwise make a move look like an inaccuracy on purpose.
+  const baked = hasScriptedEvals() ? null : book.evalLines(fen);
   if (baked && baked.length) return { cp: baked[0][1], bestUci: baked[0][0], lines: baked, source: "baked" };
   if (!engine) return null;
 

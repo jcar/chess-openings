@@ -39,6 +39,11 @@ function readQueue(): string[] {
 }
 
 /** The lowest legal move by sorted UCI — deterministic, always legal. */
+/** True when a test has seeded engine scores, so baked tables should step aside. */
+export function hasScriptedEvals(): boolean {
+  return isScriptedEngineEnabled() && readEvalQueue().length > 0;
+}
+
 function readEvalQueue(): number[] {
   if (typeof window === "undefined") return [];
   try {
