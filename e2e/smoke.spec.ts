@@ -699,9 +699,13 @@ test("the catalogue says what each group actually gives you", async ({ page }) =
 
   // Every row carries a summary, including the lighter ones. Bare titles were
   // the complaint that started this.
-  await expect(page.getByRole("link", { name: /London System/ }).first()).toContainText(/The same eight moves/);
-  await expect(page.getByRole("link", { name: /Ruy Lopez/ }).first()).toContainText(/oldest and most deeply respected/);
-  await expect(page.getByRole("link", { name: /Sicilian Defence/ }).first()).not.toHaveText(/^Sicilian Defence$/);
+  // Each row carries a summary beyond its name. Not quoting the summaries
+  // themselves: they are content, and content gets rewritten.
+  for (const name of ["London System", "Ruy Lopez", "Sicilian Defence"]) {
+    const row = page.getByRole("link", { name: new RegExp(name) }).first();
+    const text = (await row.textContent()) ?? "";
+    expect(text.replace(/^[WB]/, "").replace(name, "").trim().length, `${name} has no summary`).toBeGreaterThan(30);
+  }
   await expect(page.getByText(/^1\.d4 d5 2\.Nf3/)).toHaveCount(0);
 });
 
