@@ -620,3 +620,36 @@ describe("Larsen's Opening is coached to the same standard", () => {
     expect(sp.orderViolations.map((v) => `${v.after} before ${v.before}`)).toContain("d4 before c4");
   });
 });
+
+describe("order rules are scoped to their premise", () => {
+  const run = (id: string, line: string) => {
+    const spec = getOpening(id)!;
+    const g = new Chess();
+    const h: PlyRecord[] = [];
+    for (const s of line.trim().split(/\s+/).filter(Boolean)) {
+      const m = g.move(s);
+      h.push({ san: m.san, uci: m.from + m.to, color: m.color === "w" ? "white" : "black" });
+    }
+    return setupProgress(g.fen(), spec.setup, spec.side, h).orderViolations.map((v) => `${v.after} before ${v.before}`);
+  };
+
+  it("Open Games: bishop-before-knight is only a mistake once a knight can hit e5", () => {
+    expect(run("open-games-black", "e4 e5 f4 Bc5")).toEqual([]); // King's Gambit Declined: correct
+    expect(run("open-games-black", "e4 e5 Nf3 Bc5")).toEqual(["Bc5 before Nc6"]); // drops e5 to Nxe5
+  });
+
+  it("Four Knights: castling before d4 only matters with a bishop pinning c3", () => {
+    expect(run("four-knights", "e4 e5 Nf3 Nc6 Nc3 Nf6 d4")).toEqual([]); // Scotch Four Knights: main line
+    expect(run("four-knights", "e4 e5 Nf3 Nc6 Nc3 Nf6 Bb5 Bb4 d4")).toEqual(["d4 before O-O"]);
+  });
+
+  it("Queen's Gambit: e3 before the bishop is fine once Black has taken on c4", () => {
+    expect(run("queens-gambit", "d4 d5 c4 dxc4 Nf3 Nf6 e3")).toEqual([]);
+    expect(run("queens-gambit", "d4 d5 c4 e6 Nc3 Nf6 e3")).toEqual(["e3 before Bg5 or Bf4".replace(" or ", "|")]);
+  });
+
+  it("Caro-Kann: the bishop rule switches off in the Panov", () => {
+    expect(run("caro-kann", "e4 c6 d4 d5 exd5 cxd5 c4 Nf6 Nc3 e6")).toEqual([]);
+    expect(run("caro-kann", "e4 c6 d4 d5 e5 e6")).toEqual(["e6 before Bf5|Bg4"]);
+  });
+});

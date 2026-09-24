@@ -19,8 +19,13 @@ export interface SetupSpec {
   /** Pawn squares that define the structure (e.g. d4, e3, c3). */
   pawns: string[];
   /** Ordering rules, in SAN: `before` must be played before `after`.
-   *  Either side may list alternatives separated by "|" (e.g. "Bf5|Bg4"). */
-  order?: { before: string; after: string; why: string }[];
+   *  Either side may list alternatives separated by "|" (e.g. "Bf5|Bg4").
+   *  A rule usually exists because of something the opponent did — "knight
+   *  before bishop" in the Open Games is only true once White has a knight on
+   *  f3 to hit e5. `onlyIfOpponent` limits the rule to games where the opponent
+   *  has played one of these moves before your `after` move; `unlessOpponent`
+   *  switches it off when they have. Both accept "|" alternatives. */
+  order?: { before: string; after: string; why: string; onlyIfOpponent?: string; unlessOpponent?: string }[];
   castle: "O-O" | "O-O-O" | "either" | "none";
   /** Target move number to be castled by (soft). */
   castleBy?: number;

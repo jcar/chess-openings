@@ -29,7 +29,16 @@ export const openGamesBlack: OpeningSpec = {
       { piece: "B", squares: ["e6", "g4", "d7"], why: "The light bishop develops once ...d6 or ...d5 is in." },
     ],
     pawns: ["e5", "d6"],
-    order: [{ before: "Nc6", after: "Bc5", why: "Knight first: it defends e5, so the bishop can come out without dropping the pawn to Nxe5." }],
+    order: [
+      {
+        before: "Nc6",
+        after: "Bc5",
+        // The whole reason is Nxe5. Against 2.f4 or 2.Bc4 there is no knight on
+        // f3 yet, and ...Bc5 at once is the standard reply.
+        onlyIfOpponent: "Nf3",
+        why: "Knight first: it defends e5, so the bishop can come out without dropping the pawn to Nxe5.",
+      },
+    ],
     castle: "O-O",
     castleBy: 8,
   },

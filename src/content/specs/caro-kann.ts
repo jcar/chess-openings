@@ -26,7 +26,17 @@ export const caroKann: OpeningSpec = {
       { piece: "B", squares: ["e7", "d6", "b4"], why: "The dark bishop developed; ...Bd6 aims at the kingside." },
     ],
     pawns: ["c6", "e6"],
-    order: [{ before: "Bf5|Bg4", after: "e6", why: "Bishop out before ...e6 — otherwise you've built a French with a locked-in bishop, exactly what the Caro-Kann avoids." }],
+    order: [
+      {
+        before: "Bf5|Bg4",
+        after: "e6",
+        // Not in the Panov. After White's c4 the structure is an isolated
+        // queen's pawn fight, ...e6 before the bishop is the main line, and the
+        // "French bishop" worry does not apply.
+        unlessOpponent: "c4",
+        why: "Bishop out before ...e6 — otherwise you've built a French with a locked-in bishop, exactly what the Caro-Kann avoids.",
+      },
+    ],
     castle: "O-O",
     castleBy: 10,
   },

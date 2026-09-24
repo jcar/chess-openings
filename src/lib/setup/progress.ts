@@ -119,10 +119,22 @@ export function setupProgress(fen: string, setup: SetupSpec, side: Side, history
     const idxs = alts.split("|").map((a) => mine.indexOf(strip(a))).filter((i) => i !== -1);
     return idxs.length ? Math.min(...idxs) : -1;
   };
+  // The opponent's moves before a given one of OUR moves, for scoped rules.
+  const oppBefore = (iAfterMine: number): string[] => {
+    const ourNth = history.filter((p) => p.color === side)[iAfterMine];
+    const cut = ourNth ? history.indexOf(ourNth) : history.length;
+    return history.slice(0, cut).filter((p) => p.color !== side).map((p) => strip(p.san));
+  };
+  const anyOf = (alts: string, played: string[]) => alts.split("|").some((a) => played.includes(strip(a.trim())));
+
   const orderViolations = (setup.order ?? []).filter((rule) => {
     const iAfter = firstIndex(rule.after);
     const iBefore = firstIndex(rule.before);
     if (iAfter === -1 || (iBefore !== -1 && iBefore < iAfter)) return false;
+    // Scoped rules: the premise has to be on the board when `after` is played.
+    const theirs = oppBefore(iAfter);
+    if (rule.onlyIfOpponent && !anyOf(rule.onlyIfOpponent, theirs)) return false;
+    if (rule.unlessOpponent && anyOf(rule.unlessOpponent, theirs)) return false;
     // A rule protects a piece. Once that piece is off the board there is nothing
     // left to protect, and the rule is moot: the Caro-Kann's "bishop out before
     // ...e6" means nothing after the bishop has been traded.

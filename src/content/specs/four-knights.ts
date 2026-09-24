@@ -36,6 +36,9 @@ export const fourKnights: OpeningSpec = {
       {
         before: "O-O",
         after: "d4",
+        // The danger is the pin on c3. In the Scotch Four Knights d4 comes on
+        // move four, long before any ...Bb4, and is the main line.
+        onlyIfOpponent: "Bb4",
         why: "Castle before you open the centre. With Black's bishop on b4 pinning your c3-knight to an uncastled king, e4 has no real defender: after d4 exd4 Nxd4 Black plays ...Nxe4 and you cannot take back. Once the king is on g1 the pin is gone and d4 works.",
       },
     ],

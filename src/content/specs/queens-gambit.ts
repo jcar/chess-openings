@@ -26,7 +26,17 @@ export const queensGambit: OpeningSpec = {
       { piece: "B", squares: ["d3", "e2", "c4"], why: "The light bishop develops after e3; on c4 when Black has taken the pawn." },
     ],
     pawns: ["d4", "e3"],
-    order: [{ before: "Bg5|Bf4", after: "e3", why: "Dark bishop out before e3, or it's stuck behind its own pawn — the same rule as the London." }],
+    order: [
+      {
+        before: "Bg5|Bf4",
+        after: "e3",
+        // A Declined rule. Once Black has taken on c4, e3 to recapture is simply
+        // correct and the dark bishop develops later; the London comparison
+        // only holds while Black keeps the pawn on d5.
+        unlessOpponent: "dxc4",
+        why: "Dark bishop out before e3, or it's stuck behind its own pawn — the same rule as the London.",
+      },
+    ],
     castle: "O-O",
     castleBy: 9,
   },
