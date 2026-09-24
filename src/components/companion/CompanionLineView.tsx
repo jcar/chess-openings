@@ -6,6 +6,18 @@
 import { useState } from "react";
 import { CaissaAvatar } from "./CaissaAvatar";
 import type { CompanionLine, LineAction, Tone } from "@/lib/companion/types";
+import { GRADE_LABEL, type Grade } from "@/lib/coach/explain";
+
+/** Colour follows the grade and nothing else. The narrator used to set it, so
+ *  book moves were blue and praise was green regardless of quality. */
+const GRADE_STYLE: Record<Grade, { text: string; edge: string; chip: string }> = {
+  best: { text: "text-sage", edge: "border-sage/40", chip: "border-sage/50 bg-sage/15 text-sage" },
+  good: { text: "text-ink", edge: "border-sage/25", chip: "border-sage/40 bg-sage/10 text-sage" },
+  playable: { text: "text-ink", edge: "border-line", chip: "border-line text-ink-soft" },
+  inaccuracy: { text: "text-amber", edge: "border-amber/40", chip: "border-amber/50 bg-amber/10 text-amber" },
+  mistake: { text: "text-clay", edge: "border-clay/40", chip: "border-clay/50 bg-clay/10 text-clay" },
+  blunder: { text: "text-clay", edge: "border-clay/60", chip: "border-clay/60 bg-clay/15 text-clay" },
+};
 
 const TONE_TEXT: Record<Tone, string> = {
   warn: "text-clay",
@@ -58,22 +70,50 @@ export function CompanionLineView({
     );
   }
 
-  const expandable = !!line.more;
+  const graded = line.grade ? GRADE_STYLE[line.grade] : null;
+  const textCls = graded ? graded.text : TONE_TEXT[tone];
+  const edgeCls = graded ? graded.edge : TONE_EDGE[tone];
+  const parts = line.detail
+    ? ([
+        ["What it did", line.detail.did],
+        ["Why the opening wants it", line.detail.why],
+        ["Anything better?", line.detail.better],
+      ] as [string, string | undefined][]).filter((p): p is [string, string] => !!p[1])
+    : [];
+  const expandable = !!line.more || parts.length > 0;
   const choices = (line.actions ?? []).filter((a) => a.kind !== "jump");
   const stacked = choices.length > 2 || choices.some((a) => a.label.length > 16);
   return (
     <div className="flex items-start gap-2" data-beat={line.kind}>
       <CaissaAvatar status={line.priority === 0 ? "alert" : "idle"} size={26} />
-      <div className={`min-w-0 flex-1 rounded-2xl border bg-card px-3 py-2 ${TONE_EDGE[tone]}`}>
+      <div className={`min-w-0 flex-1 rounded-2xl border bg-card px-3 py-2 ${edgeCls}`}>
+        {graded && (
+          <span
+            data-grade={line.grade}
+            className={`mb-1 inline-block rounded-full border px-1.5 py-px text-[10px] font-bold uppercase tracking-wide ${graded.chip}`}
+          >
+            {GRADE_LABEL[line.grade!]}
+          </span>
+        )}
         {expandable ? (
           <button type="button" onClick={() => setOpen((v) => !v)} className="w-full text-left" aria-expanded={open}>
-            <span className={`text-[15px] leading-snug ${TONE_TEXT[tone]}`}>{line.text}</span>
+            <span className={`text-[15px] leading-snug ${textCls}`}>{line.text}</span>
             {!open && <span className="ml-1 text-xs text-ink-soft">· why</span>}
           </button>
         ) : (
-          <p className={`text-[15px] leading-snug ${TONE_TEXT[tone]}`}>{line.text}</p>
+          <p className={`text-[15px] leading-snug ${textCls}`}>{line.text}</p>
         )}
-        {open && line.more && <p className="mt-1.5 text-sm leading-snug text-ink-soft">{line.more}</p>}
+        {open && parts.length > 0 && (
+          <dl className="mt-1.5 flex flex-col gap-1.5">
+            {parts.map(([label, text]) => (
+              <div key={label}>
+                <dt className="text-[10px] font-bold uppercase tracking-[0.1em] text-ink-soft">{label}</dt>
+                <dd className="text-sm leading-snug text-ink-soft">{text}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {open && parts.length === 0 && line.more && <p className="mt-1.5 text-sm leading-snug text-ink-soft">{line.more}</p>}
         {choices.length > 0 && (
           // Two short actions sit side by side. Three, or anything sentence-length,
           // becomes a column — a 390px screen split three ways turns an answer

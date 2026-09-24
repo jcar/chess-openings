@@ -77,6 +77,10 @@ export interface CompanionLine {
   /** Suppresses a near-repeat within the recent window ("nothing-hanging"). */
   dedupeKey?: string;
   tone?: Tone;
+  /** Quality of your move, when this line is a verdict on it. */
+  grade?: import("@/lib/coach/explain").Grade;
+  /** The three-part reveal behind a verdict. */
+  detail?: import("@/lib/coach/explain").CoachDetail;
 }
 
 /** Headline budget. This began as a limit on what was bearable read aloud; the

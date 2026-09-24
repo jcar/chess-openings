@@ -28,6 +28,8 @@ interface Draft {
   dedupeKey?: string;
   actions?: CompanionLine["actions"];
   deco?: CompanionLine["deco"];
+  grade?: CompanionLine["grade"];
+  detail?: CompanionLine["detail"];
 }
 
 /** Her lines. */
@@ -44,6 +46,8 @@ function caissa(plyIndex: number, d: Draft): CompanionLine {
     dedupeKey: d.dedupeKey,
     actions: d.actions,
     deco: d.deco,
+    grade: d.grade,
+    detail: d.detail,
   };
 }
 
@@ -103,7 +107,8 @@ export function eventToLines(e: TrainEvent, ctx: BeatContext): CompanionLine[] {
           more: moreOf(m),
           priority: verdictPriority(m),
           tone: toneOf(m),
-          deco: m.bestSan ? undefined : undefined,
+          grade: m.grade,
+          detail: m.detail,
         }),
       );
 

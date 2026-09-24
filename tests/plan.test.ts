@@ -70,7 +70,9 @@ describe("the setup outranks the move list", () => {
     const msg = explainUserMove(ctxFor("d4 d5", "Bf4"));
     expect(msg.kind).toBe("praise");
     expect(msg.source).toBe("setup");
-    expect(msg.headline).toContain("On plan");
+    // The headline is the move plus the reason the setup wants it — not a label.
+    expect(msg.headline).toMatch(/^Bf4\. /);
+    expect(msg.headline).toMatch(/bishop/i);
     // The move order is mentioned, but as information rather than a correction.
     expect(msg.lookFor).toContain("Nf3");
     expect(msg.pause).toBe(false);
@@ -651,5 +653,75 @@ describe("order rules are scoped to their premise", () => {
   it("Caro-Kann: the bishop rule switches off in the Panov", () => {
     expect(run("caro-kann", "e4 c6 d4 d5 exd5 cxd5 c4 Nf6 Nc3 e6")).toEqual([]);
     expect(run("caro-kann", "e4 c6 d4 d5 e5 e6")).toEqual(["e6 before Bf5|Bg4"]);
+  });
+});
+
+describe("one grade, one reason", () => {
+  const italian = getOpening("italian-game")!;
+  const itaBook = new MergedBook(italian, null, null);
+  const at = (line: string) => {
+    const g = new Chess();
+    const h: PlyRecord[] = [];
+    for (const s of line.trim().split(/\s+/).filter(Boolean)) {
+      const m = g.move(s);
+      h.push({ san: m.san, uci: m.from + m.to, color: m.color === "w" ? "white" : "black" });
+    }
+    return { g, h };
+  };
+  const verdict = (line: string, san: string, cpBefore: number, cpAfterOpp: number, bestUci: string | null) => {
+    const { g, h } = at(line);
+    const fenBefore = g.fen();
+    const m = g.move(san);
+    const uci = m.from + m.to;
+    const move = describeMove(fenBefore, uci)!;
+    return explainUserMove({
+      spec: italian, book: itaBook, fenBefore, fenAfter: g.fen(), move, history: h,
+      tags: tagMove(fenBefore, g.fen(), move, h), judgement: judge(cpBefore, cpAfterOpp, bestUci === uci), bestUci,
+      setupBefore: setupProgress(fenBefore, italian.setup, "white", h),
+      setupAfter: setupProgress(g.fen(), italian.setup, "white", [...h, { san: m.san, uci, color: "white" }]),
+      verbosity: "normal" as const, inOpening: true,
+    });
+  };
+
+  it("grades every evaluated move on the one ladder", () => {
+    expect(verdict("e4 e5 Nf3 Nc6 Bc4 Bc5", "c3", 30, -30, "c2c3").grade).toBe("best");
+    expect(verdict("e4 e5 Nf3 Nc6 Bc4 Bc5", "d3", 80, -40, "c2c3").grade).toBe("good");
+    expect(verdict("e4 e5 Nf3 Nc6 Bc4 Bc5", "d3", 90, -20, "c2c3").grade).toBe("playable");
+    expect(verdict("e4 e5 Nf3 Nc6 Bc4 Bc5", "d3", 120, -20, "c2c3").grade).toBe("inaccuracy");
+  });
+
+  it("lets the book's harsher verdict override a kind engine", () => {
+    // 4.Ng5 is an authored mistake. Even with a flat engine it is a Mistake.
+    const v = verdict("e4 e5 Nf3 Nc6 Bc4 Bc5", "Ng5", 30, -30, "f3g5");
+    expect(v.grade).toBe("mistake");
+    expect(v.pause).toBe(true);
+  });
+
+  it("carries no grade before anything has been evaluated", () => {
+    const { g, h } = at("e4 e5 Nf3 Nc6 Bc4 Bc5");
+    const fenBefore = g.fen();
+    const m = g.move("c3");
+    const move = describeMove(fenBefore, m.from + m.to)!;
+    const v = explainUserMove({
+      spec: italian, book: itaBook, fenBefore, fenAfter: g.fen(), move, history: h, tags: [], judgement: null, bestUci: null,
+      setupBefore: setupProgress(fenBefore, italian.setup, "white", h),
+      setupAfter: setupProgress(g.fen(), italian.setup, "white", h), verbosity: "normal", inOpening: true,
+    });
+    expect(v.grade).toBeUndefined();
+  });
+
+  it("every headline is the move plus a reason, never a bare label", () => {
+    for (const [line, san] of [["e4 e5 Nf3 Nc6 Bc4 Bc5", "c3"], ["e4 e5 Nf3 Nc6 Bc4 Bc5", "d3"], ["e4 e5 Nf3 Nc6 Bc4 Nf6", "d3"]] as const) {
+      const v = verdict(line, san, 30, -30, null);
+      expect(v.headline.startsWith(san), v.headline).toBe(true);
+      expect(v.headline.length, v.headline).toBeGreaterThan(san.length + 14);
+      expect(v.headline, v.headline).not.toMatch(/\. (Book move|Best move|Fine|On plan)\.$/);
+    }
+  });
+
+  it("offers the three-part reveal with the reason always present", () => {
+    const v = verdict("e4 e5 Nf3 Nc6 Bc4 Bc5", "c3", 30, -30, "c2c3");
+    expect(v.detail?.why).toMatch(/Prepare d4/);
+    expect(v.detail?.better).toMatch(/Nothing better/);
   });
 });

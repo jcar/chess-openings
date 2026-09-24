@@ -140,6 +140,23 @@ export function TheoryView({ spec }: { spec: OpeningSpec }) {
           </div>
         </section>
 
+        <section className="flex flex-col gap-2">
+          <SectionHead>How the coach grades a move</SectionHead>
+          <p className="text-sm leading-snug text-ink-soft">
+            Every move you play gets one of six grades, from the engine&rsquo;s view of the position, with the book&rsquo;s verdict
+            taking over when it is harsher. The sentence beside it is always the reason. Tap it for what the move did, why
+            this opening wants it, and whether anything was better.
+          </p>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+            <dt className="font-semibold text-sage">Best</dt><dd className="text-ink-soft">Nothing better was available.</dd>
+            <dt className="font-semibold text-sage">Good</dt><dd className="text-ink-soft">Within a few percent of best. Noise at this depth.</dd>
+            <dt className="font-semibold text-ink">Playable</dt><dd className="text-ink-soft">A small real gap. The better move is named, play goes on.</dd>
+            <dt className="font-semibold text-amber">Inaccuracy</dt><dd className="text-ink-soft">Seven to twelve points of winning chances. The game stops to show you.</dd>
+            <dt className="font-semibold text-clay">Mistake</dt><dd className="text-ink-soft">Twelve or more, or a move the book warns against, or a broken order rule.</dd>
+            <dt className="font-semibold text-clay">Blunder</dt><dd className="text-ink-soft">Twenty-five or more. Usually material.</dd>
+          </dl>
+        </section>
+
         {spec.eco && (
           <p className="text-xs text-ink-soft">
             Catalogued as <span className="font-mono">{spec.eco}</span> in the Encyclopaedia of Chess Openings, the

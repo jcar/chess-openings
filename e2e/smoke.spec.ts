@@ -280,9 +280,11 @@ test("she says so when you get it right, at the default setting", async ({ page 
   await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
   await move(page, "c1", "f4");
   // Praise used to be built at a priority the Normal ceiling dropped, so the
-  // coach only ever spoke when you erred.
-  const onPlan = page.locator('[data-beat="verdict_good"]', { hasText: "On plan" });
-  await expect(onPlan).toBeVisible({ timeout: 10_000 });
+  // coach only ever spoke when you erred. The verdict names the move and gives
+  // a reason; the grade rides on a chip, not in the sentence.
+  const verdict = page.locator('[data-beat="verdict_good"]', { hasText: /Bf4\. / });
+  await expect(verdict).toBeVisible({ timeout: 10_000 });
+  await expect(verdict.locator("[data-grade]")).toHaveAttribute("data-grade", /best|good|playable/);
 });
 
 test("the setup counter opens the goals behind it", async ({ page }) => {
@@ -760,4 +762,31 @@ test("Larsen appears as a coached opening, not a lighter one", async ({ page }) 
   const rows = await coached.locator("xpath=following-sibling::*//a").count();
   expect(shown).toBeGreaterThanOrEqual(11);
   expect(rows).toBe(shown);
+});
+
+test("every verdict wears a grade, and the theory page explains them", async ({ page }) => {
+  await useScriptedEngine(page, ["d7d5", "g8f6"]);
+  await page.goto("/train/london-system/");
+  await move(page, "d2", "d4");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
+  await move(page, "c1", "f4");
+  await expect(page.getByRole("button", { name: "Their move Nf6" })).toBeVisible({ timeout: 10_000 });
+
+  // An ordinary book move carries a grade chip and a reason, not a label.
+  const chips = page.locator("[data-grade]");
+  await expect(chips.first()).toBeVisible({ timeout: 10_000 });
+  await expect(chips.last()).toHaveText(/Best|Good|Playable/);
+  const verdict = page.locator('[data-beat="verdict_good"]').last();
+  await expect(verdict).not.toContainText(/\. (Book move|On plan)\.$/);
+
+  // Tapping reveals the fixed three-part shape.
+  await verdict.getByRole("button").first().click();
+  await expect(verdict.getByText("Why the opening wants it")).toBeVisible();
+  await expect(verdict.getByText("Anything better?")).toBeVisible();
+
+  await page.goto("/openings/london-system/", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: /How the coach grades a move/ })).toBeVisible();
+  for (const g of ["Best", "Good", "Playable", "Inaccuracy", "Mistake", "Blunder"]) {
+    await expect(page.getByText(g, { exact: true }).first()).toBeVisible();
+  }
 });

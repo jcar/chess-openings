@@ -16,11 +16,28 @@ import { templateThey, templateYou, type Bucket, type Slots } from "./templates"
 export type CoachKind = "praise" | "note" | "warn" | "punish" | "book" | "idea";
 export type CoachSource = "authored" | "setup" | "idea" | "tag" | "engine" | "book";
 
+/** One ladder, always shown. Colour follows this and nothing else. */
+export type Grade = "best" | "good" | "playable" | "inaccuracy" | "mistake" | "blunder";
+export const GRADE_LABEL: Record<Grade, string> = { best: "Best", good: "Good", playable: "Playable", inaccuracy: "Inaccuracy", mistake: "Mistake", blunder: "Blunder" };
+
+/** The three things a tap can reveal, in a fixed order. */
+export interface CoachDetail {
+  /** What the move did, from the position itself. */
+  did?: string;
+  /** Why this opening wants it: the author's note or the setup reason. */
+  why?: string;
+  /** Whether anything was better, and what. */
+  better?: string;
+}
+
 export interface CoachMessage {
   kind: CoachKind;
   headline: string;
   body: string;
   lookFor?: string;
+  /** Quality of YOUR move. Absent when nothing has been evaluated yet. */
+  grade?: Grade;
+  detail?: CoachDetail;
   /** Revealed only when the user asks for a hint. */
   hint?: string;
   bestSan?: string | null;
@@ -90,6 +107,27 @@ export interface UserMoveContext {
   inOpening: boolean;
 }
 
+const GRADE_OF: Record<Severity, Grade> = { best: "best", good: "good", ok: "playable", inaccuracy: "inaccuracy", mistake: "mistake", blunder: "blunder" };
+const GRADE_RANK: Record<Grade, number> = { best: 0, good: 1, playable: 2, inaccuracy: 3, mistake: 4, blunder: 5 };
+
+/** The engine's grade, never better than `floor` — the book's own verdict wins
+ *  when it is harsher, so an authored mistake is never labelled Good. */
+function gradeOf(sev: Severity | undefined, floor?: Grade): Grade | undefined {
+  const g = sev ? GRADE_OF[sev] : undefined;
+  if (!floor) return g;
+  if (!g) return floor;
+  return GRADE_RANK[g] >= GRADE_RANK[floor] ? g : floor;
+}
+
+/** The lead of an authored note. Authors sometimes open with a label ("The
+ *  London bishop.") and put the reason in sentence two; a headline made of the
+ *  label alone would be exactly the thing part two set out to remove. */
+const firstSentence = (t: string) => {
+  const parts = t.split(/(?<=[.!?])\s/);
+  const lead = parts[0] ?? t;
+  return parts.length > 1 && lead.split(/\s+/).length < 5 ? `${lead} ${parts[1]}` : lead;
+};
+
 export function explainUserMove(ctx: UserMoveContext): CoachMessage {
   const { spec, fenBefore, fenAfter, move, history, tags, judgement, verbosity } = ctx;
   const sev = judgement?.severity;
@@ -104,6 +142,9 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
   // "Book move" and "On plan" told you the move was fine and left you wondering
   // whether something better was available. Every verdict now answers that.
   // "good" is within a few percent of best, which is noise at this depth.
+  const positiveTag = topTag(tags.filter((t) => !NEGATIVE_TAGS.has(t) && t !== "captures" && t !== "common_reply" && t !== "left_authored" && t !== "rare_reply"));
+  const did = positiveTag ? templateYou(positiveTag, "good", slots).why : undefined;
+
   const tail =
     sev === "best"
       ? "Nothing better here."
@@ -121,6 +162,8 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
     const extra = a?.checkpoint?.explanation;
     return {
       kind: "warn",
+      grade: gradeOf(sev, "mistake"),
+      detail: { why: authoredMistake.why, better: a?.yourMove ? `The book plays ${a.yourMove.san} here.` : undefined },
       headline: `${move.san}? The book warns against that.`,
       body: extra ? `${trim(authoredMistake.why)} ${extra}` : authoredMistake.why,
       bestSan: a?.yourMove?.san ?? bestSan,
@@ -132,7 +175,16 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
     };
   }
   if (a?.yourMove && a.yourMove.san === move.san) {
-    return { kind: "praise", headline: `${move.san}. Book move.`, body: withTail(a.yourMove.why), severity: sev, source: "authored", pause: false };
+    return {
+      kind: "praise",
+      grade: gradeOf(sev),
+      headline: `${move.san}. ${firstSentence(a.yourMove.why)}`,
+      body: withTail(a.yourMove.why),
+      detail: { did, why: a.yourMove.why, better: tail || undefined },
+      severity: sev,
+      source: "authored",
+      pause: false,
+    };
   }
   // The opening's OWN rule outranks its move list. Playing e3 before Bf4 is a
   // real London error; playing Bf4 before Nf3 is not, even though the authored
@@ -142,6 +194,8 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
   if (violationNow) {
     return {
       kind: "warn",
+      grade: gradeOf(sev, "mistake"),
+      detail: { why: violationNow.why, better: `Play ${orMoves(violationNow.before)} first.` },
       headline: `${violationNow.after} before ${orMoves(violationNow.before)} — wrong order.`,
       body: violationNow.why,
       // The rule stops the game on its own authority. It used to defer to the
@@ -165,6 +219,8 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
     const tpl = negative ? templateYou(negative, "meh", slots) : null;
     return {
       kind: "note",
+      grade: "inaccuracy",
+      detail: { did, why: tpl?.why, better: `${bestSan} was the move.` },
       headline: `${move.san}. There was better.`,
       body: trim(tpl ? tpl.why : `${bestSan} holds more of your position. Look at what it covers or attacks that ${move.san} leaves alone.`),
       lookFor: `${bestSan} was the move.`,
@@ -183,8 +239,10 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
     const why = goal ? spec.setup.pieces.find((g) => g.piece === goal.piece && g.squares.join() === goal.squares.join())?.why : undefined;
     return {
       kind: "praise",
-      headline: `${move.san}. On plan.`,
+      grade: gradeOf(sev),
+      headline: `${move.san}. ${firstSentence(why ?? "Another piece of the structure in place.")}`,
       body: withTail(why ?? "Another piece of the structure in place."),
+      detail: { did, why, better: tail || undefined },
       lookFor: a?.yourMove && a.yourMove.san !== move.san ? `The book's move order here is ${a.yourMove.san}, but this reaches the same setup.` : undefined,
       severity: sev,
       source: "setup",
@@ -196,8 +254,10 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
     if (!bad && !negative) {
       return {
         kind: "note",
-        headline: `${move.san} works too.`,
+        grade: gradeOf(sev),
+        headline: `${move.san} works too — the book plays ${a.yourMove.san}.`,
         body: withTail(`The book move here is ${a.yourMove.san}: ${a.yourMove.why}`),
+        detail: { did, why: a.yourMove.why, better: tail || `The book's move here is ${a.yourMove.san}.` },
         bestSan: a.yourMove.san,
         severity: sev,
         source: "authored",
@@ -207,6 +267,8 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
     const tpl = negative ? templateYou(negative, bucket, slots) : null;
     return {
       kind: "warn",
+      grade: gradeOf(sev, bad ? "mistake" : "inaccuracy"),
+      detail: { did: tpl?.why, why: a.yourMove.why, better: `The book plays ${a.yourMove.san}.` },
       headline: tpl?.headline ?? `${move.san} steps off the plan.`,
       body: trim(tpl ? `${tpl.why} The book move was ${a.yourMove.san}: ${a.yourMove.why}` : `The book move was ${a.yourMove.san}: ${a.yourMove.why}`),
       lookFor: tpl?.lookFor,
@@ -221,13 +283,27 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
   // 4) Feature tag with the engine's verdict.
   if (negative && (bad || bucket === "meh" || verbosity === "verbose")) {
     const tpl = templateYou(negative, bucket, slots);
-    return { kind: bad ? "warn" : "note", headline: tpl.headline, body: bad ? trim(tpl.why) : withTail(tpl.why), lookFor: tpl.lookFor, bestSan, severity: sev, source: "tag", pause: bad, tag: negative };
+    return {
+      kind: bad ? "warn" : "note",
+      grade: gradeOf(sev, bad ? "mistake" : undefined),
+      headline: tpl.headline,
+      body: bad ? trim(tpl.why) : withTail(tpl.why),
+      detail: { did: tpl.why, better: bestSan ? `${bestSan} was better.` : undefined },
+      lookFor: tpl.lookFor,
+      bestSan,
+      severity: sev,
+      source: "tag",
+      pause: bad,
+      tag: negative,
+    };
   }
 
   // 5) Engine says it's bad but no tag explains why.
   if (bad) {
     return {
       kind: "warn",
+      grade: gradeOf(sev, "mistake"),
+      detail: { better: bestSan ? `${bestSan} was the move.` : undefined },
       headline: sev === "blunder" ? "That one is expensive." : "That costs you.",
       body: bestSan ? `The engine much prefers ${bestSan}. Look at what it attacks or defends that ${move.san} doesn't.` : "The engine dislikes this move.",
       bestSan,
@@ -241,11 +317,13 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
   const positive = topTag(tags.filter((t) => !NEGATIVE_TAGS.has(t) && t !== "captures" && t !== "common_reply"));
   if (ctx.setupAfter.met > ctx.setupBefore.met && ctx.setupAfter.total) {
     const goal = ctx.setupAfter.pieces.find((p) => p.done && !ctx.setupBefore.pieces.find((q) => q.piece === p.piece && q.squares.join() === p.squares.join())?.done);
+    const goalWhy = goal ? spec.setup.pieces.find((p) => p.piece === goal.piece && p.squares.join() === goal.squares.join())?.why : undefined;
+    const reason = goalWhy ?? "Another piece of the structure in place.";
     return {
       kind: "praise",
-      headline: goal
-        ? `${move.san}. ${PIECE_NAME[goal.piece.toLowerCase() as never] ?? "Piece"} where it belongs.`
-        : `${move.san}. Setup ${ctx.setupAfter.met} of ${ctx.setupAfter.total}.`,
+      grade: gradeOf(sev),
+      headline: `${move.san}. ${firstSentence(reason)}`,
+      detail: { did, why: reason, better: tail || undefined },
       body: trim(goal ? spec.setup.pieces.find((p) => p.piece === goal.piece && p.squares.join() === goal.squares.join())?.why ?? "Part of your setup." : "Another piece of the structure in place."),
       severity: sev,
       source: "setup",
@@ -254,9 +332,11 @@ export function explainUserMove(ctx: UserMoveContext): CoachMessage {
   }
   if (positive) {
     const tpl = templateYou(positive, "good", slots);
-    return { kind: "praise", headline: tpl.headline, body: verbosity === "terse" ? tail : withTail(tpl.why), severity: sev, source: "tag", pause: false, tag: positive };
+    return { kind: "praise", grade: gradeOf(sev), headline: tpl.headline, body: verbosity === "terse" ? tail : withTail(tpl.why), detail: { did: tpl.why, better: tail || undefined }, severity: sev, source: "tag", pause: false, tag: positive };
   }
-  return { kind: "note", headline: sev === "best" ? `${move.san}. Best move.` : `${move.san}. Fine.`, body: tail, bestSan, severity: sev, source: "engine", pause: false };
+  const plain =
+    sev === "best" ? "Nothing better here." : sev === "ok" && bestSan ? `${bestSan} was a shade better.` : "Solid, and within a shade of the best.";
+  return { kind: "note", grade: gradeOf(sev), headline: `${move.san}. ${plain}`, body: tail, detail: { did, better: tail || plain }, bestSan, severity: sev, source: "engine", pause: false };
 }
 
 export interface BotMoveContext {
