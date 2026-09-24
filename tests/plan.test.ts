@@ -23,6 +23,15 @@ import { setupProgress } from "@/lib/setup/progress";
 import { compactCount } from "@/lib/format";
 import { benchmarkStatus, passedCount, scoreBenchmarks } from "@/lib/principles/benchmarks";
 
+/** The move facts a judged-move event carries for the slip ledger. None of these
+ *  tests exercise the ledger, so a neutral 1.e4 does. */
+const J = {
+  move: { san: "e4", uci: "e2e4", color: "white", piece: "p", from: "e2", to: "e4", isCheck: false, isCastle: false } as const,
+  fenBefore: new Chess().fen(),
+  fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+  historyBefore: [],
+};
+
 const london = getOpening("london-system")!;
 const book = new MergedBook(london, null, null);
 
@@ -198,7 +207,7 @@ describe("praise actually reaches the player", () => {
   it("builds the on-plan verdict at a priority Normal lets through", () => {
     const message = explainUserMove(ctxFor("d4 d5", "Bf4"));
     const [line] = eventToLines(
-      { t: "user_judged", plyIndex: 3, message, judgement: null, winPct: null, deltaPct: null, tags: [], pause: false, stepping: false },
+      { t: "user_judged", ...J, plyIndex: 3, message, judgement: null, winPct: null, deltaPct: null, tags: [], pause: false, stepping: false },
       beatCtx,
     );
     expect(line.priority).toBeLessThanOrEqual(MAX_PRIORITY.normal);

@@ -9,6 +9,8 @@ import type { MoveJudgement } from "@/lib/coach/classify";
 import type { MoveTag } from "@/lib/coach/tags";
 import type { ThinkAbout } from "@/lib/coach/prompt";
 import type { GameOverInfo, Ply } from "@/lib/game/useTrainGame";
+import type { MoveInfo } from "@/lib/coach/features";
+import type { PlyRecord } from "@/lib/setup/progress";
 
 export type TrainEvent =
   | { t: "game_start" }
@@ -23,6 +25,11 @@ export type TrainEvent =
       tags: MoveTag[];
       pause: boolean;
       stepping: boolean;
+      /** The move and where it was played from, for the slip ledger. */
+      move: MoveInfo;
+      fenBefore: string;
+      fenAfter: string;
+      historyBefore: PlyRecord[];
     }
   | {
       t: "bot_move";
@@ -40,7 +47,7 @@ export type TrainEvent =
   | { t: "book_ended"; plyIndex: number; by: "you" | "them"; san: string; bookMove?: string }
   | { t: "book_resumed"; plyIndex: number }
   | { t: "hint"; plyIndex: number; text: string; from?: string; to?: string }
-  | { t: "pickup"; plyIndex: number; square: string; fen: string }
+  | { t: "pickup"; plyIndex: number; square: string; fen: string; history?: PlyRecord[] }
   | { t: "truncate"; toPlyIndex: number }
   | { t: "reset" }
   | { t: "game_over"; info: GameOverInfo };

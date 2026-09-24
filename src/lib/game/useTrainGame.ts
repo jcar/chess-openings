@@ -395,6 +395,10 @@ export function useTrainGame(spec: OpeningSpec, difficulty: Difficulty, options:
           tags,
           pause,
           stepping,
+          move: info,
+          fenBefore,
+          fenAfter,
+          historyBefore,
         });
         setState((s) => ({
           ...s,

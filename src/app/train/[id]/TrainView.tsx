@@ -21,6 +21,8 @@ import type { MoveTag } from "@/lib/coach/tags";
 import { useCompanion } from "@/lib/companion/useCompanion";
 import type { LineAction } from "@/lib/companion/types";
 import { recordMistake } from "@/lib/progress/mistakes";
+import { settle, slipStore } from "@/lib/progress/slips";
+import type { TrainEvent } from "@/lib/companion/events";
 import { finishGame } from "@/lib/progress/recordGame";
 import { setupProgress } from "@/lib/setup/progress";
 import { planStatus } from "@/lib/setup/plan";
@@ -48,10 +50,36 @@ export function TrainView({ spec }: { spec: OpeningSpec }) {
     [spec.id],
   );
 
+  // She speaks first, from the ledger as it stood before this move; then the
+  // ledger learns from it. The other order would let a slip made this move
+  // count as "remembered", or retire one before the praise for clearing it.
+  const { say, gameId } = companion;
+  const onEvent = useCallback(
+    (e: TrainEvent) => {
+      say(e);
+      if (e.t !== "user_judged") return;
+      const m = e.message;
+      slipStore.update((s) =>
+        settle(s, spec, gameId(), {
+          fenBefore: e.fenBefore,
+          fenAfter: e.fenAfter,
+          san: e.move.san,
+          from: e.move.from,
+          historyBefore: e.historyBefore,
+          pause: e.pause,
+          source: m.source,
+          better: m.bestSan,
+          why: m.detail?.why ?? m.body.split(/(?<=[.!?])\s/)[0] ?? m.headline,
+        }),
+      );
+    },
+    [say, gameId, spec],
+  );
+
   const { state, book, userColor, userToMove, playUserMove, playOn, takeBack, reset, showHint, legalDestinations } = useTrainGame(
     spec,
     difficulty,
-    { onGameOver, onJudged, onEvent: companion.say },
+    { onGameOver, onJudged, onEvent },
   );
 
   const reviewing = reviewIndex !== null;
@@ -89,7 +117,7 @@ export function TrainView({ spec }: { spec: OpeningSpec }) {
 
   const onPickUp = (square: string) => {
     if (!userToMove) return;
-    companion.say({ t: "pickup", plyIndex: state.history.length, square, fen: state.fen });
+    companion.say({ t: "pickup", plyIndex: state.history.length, square, fen: state.fen, history: state.history });
   };
 
   const onAction = (a: LineAction) => {

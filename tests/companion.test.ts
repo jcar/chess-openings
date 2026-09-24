@@ -22,6 +22,15 @@ function ply(san: string, byUser = true): Ply {
   return { san, uci: "e2e4", color: byUser ? "white" : "black", fen: new Chess().fen(), byUser };
 }
 
+/** The move facts a judged-move event carries for the slip ledger. None of these
+ *  tests exercise the ledger, so a neutral 1.e4 does. */
+const J = {
+  move: { san: "e4", uci: "e2e4", color: "white", piece: "p", from: "e2", to: "e4", isCheck: false, isCastle: false } as const,
+  fenBefore: new Chess().fen(),
+  fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+  historyBefore: [],
+};
+
 function msg(over: Partial<CoachMessage> = {}): CoachMessage {
   return { kind: "note", headline: "Fine.", body: "", source: "engine", pause: false, ...over };
 }
@@ -91,7 +100,7 @@ describe("beats", () => {
 
   it("gives a blunder an urgent verdict, and leaves the take-back to the stop-down", () => {
     const lines = eventToLines(
-      { t: "user_judged", plyIndex: 3, message: msg({ kind: "warn", headline: "That hangs the knight.", severity: "blunder", body: "c3 takes it." }), judgement: null, winPct: 30, deltaPct: -30, tags: [], pause: true, stepping: false },
+      { t: "user_judged", ...J, plyIndex: 3, message: msg({ kind: "warn", headline: "That hangs the knight.", severity: "blunder", body: "c3 takes it." }), judgement: null, winPct: 30, deltaPct: -30, tags: [], pause: true, stepping: false },
       ctx,
     );
     const kinds = lines.map((l) => l.kind);
@@ -105,7 +114,7 @@ describe("beats", () => {
 
   it("still offers Continue in Step mode, which is not a stop-down", () => {
     const lines = eventToLines(
-      { t: "user_judged", plyIndex: 3, message: msg({ kind: "note", headline: "Fine." }), judgement: null, winPct: 50, deltaPct: 0, tags: [], pause: false, stepping: true },
+      { t: "user_judged", ...J, plyIndex: 3, message: msg({ kind: "note", headline: "Fine." }), judgement: null, winPct: 50, deltaPct: 0, tags: [], pause: false, stepping: true },
       ctx,
     );
     expect(lines.find((l) => l.kind === "step_continue")!.actions!.map((a) => a.kind)).toEqual(["continue"]);
@@ -114,7 +123,7 @@ describe("beats", () => {
   it("remembers a mistake you keep making", () => {
     const recurring: MistakeEntry[] = [{ tag: "hangs_piece", square: "e5", count: 2, lastSeen: "", sample: "Nxe5" }];
     const lines = eventToLines(
-      { t: "user_judged", plyIndex: 5, message: msg({ kind: "warn", headline: "Hanging.", tag: "hangs_piece" }), judgement: null, winPct: 40, deltaPct: -5, tags: [], pause: false, stepping: false },
+      { t: "user_judged", ...J, plyIndex: 5, message: msg({ kind: "warn", headline: "Hanging.", tag: "hangs_piece" }), judgement: null, winPct: 40, deltaPct: -5, tags: [], pause: false, stepping: false },
       { ...ctx, recurring },
     );
     const repeat = lines.find((l) => l.kind === "repeat_mistake")!;
@@ -134,7 +143,7 @@ describe("beats", () => {
   it("shows a long line in full rather than truncating it", () => {
     const long = "This explanation goes on and on and on and will never fit inside a single short line at all";
     const [l] = eventToLines(
-      { t: "user_judged", plyIndex: 2, message: msg({ headline: long }), judgement: null, winPct: null, deltaPct: null, tags: [], pause: false, stepping: false },
+      { t: "user_judged", ...J, plyIndex: 2, message: msg({ headline: long }), judgement: null, winPct: null, deltaPct: null, tags: [], pause: false, stepping: false },
       ctx,
     );
     expect(l.text).toBe(long);
@@ -142,7 +151,7 @@ describe("beats", () => {
 
   it("offers Continue in step pacing", () => {
     const lines = eventToLines(
-      { t: "user_judged", plyIndex: 2, message: msg(), judgement: null, winPct: null, deltaPct: null, tags: [], pause: false, stepping: true },
+      { t: "user_judged", ...J, plyIndex: 2, message: msg(), judgement: null, winPct: null, deltaPct: null, tags: [], pause: false, stepping: true },
       ctx,
     );
     const step = lines.find((l) => l.kind === "step_continue")!;

@@ -243,6 +243,11 @@ export function Board({
             : tapEnabled
               ? ({ square }) => handleSquareClick(square)
               : undefined,
+          // A drag is a pick-up too: the coach's warnings about the piece in
+          // your hand shouldn't depend on whether you tap or drag.
+          onPieceDrag: ({ square }) => {
+            if (square) onSelect?.(square);
+          },
           onPieceDrop: ({ sourceSquare, targetSquare }) => {
             if (!onDrop || !targetSquare) return false;
             holdDocumentHeight();

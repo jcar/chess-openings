@@ -790,3 +790,28 @@ test("every verdict wears a grade, and the theory page explains them", async ({ 
     await expect(page.getByText(g, { exact: true }).first()).toBeVisible();
   }
 });
+
+test("she remembers last game's slip when you pick up the same piece", async ({ page }) => {
+  await useScriptedEngine(page, ["d7d5", "g8f6", "d7d5", "g8f6"]);
+  await page.goto("/train/london-system/");
+
+  // Game one: e3 before Bf4, the London's one rule. The game stops; play on.
+  await move(page, "d2", "d4");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
+  await move(page, "e2", "e3");
+  await expect(page.locator('[data-testid="stop-down"]')).toBeVisible({ timeout: 10_000 });
+  await playOnIfStopped(page);
+  await expect(page.getByRole("button", { name: "Their move Nf6" })).toBeVisible({ timeout: 10_000 });
+
+  // Game two: same spot. Reaching for the e-pawn is enough for her to speak.
+  await page.getByRole("button", { name: /New game/ }).click();
+  await move(page, "d2", "d4");
+  await expect(page.getByRole("button", { name: "Their move d5" })).toBeVisible({ timeout: 10_000 });
+  await page.locator('[data-square="e2"]').click();
+  await expect(page.locator('[data-beat="recall"]')).toContainText("Last time e3 came before Bf4. Bf4 first.");
+
+  // Put it down, play the bishop, and she notices.
+  await page.locator('[data-square="e2"]').click();
+  await move(page, "c1", "f4");
+  await expect(page.locator('[data-beat="remembered"]')).toContainText("Remembered — Bf4 first this time.", { timeout: 10_000 });
+});

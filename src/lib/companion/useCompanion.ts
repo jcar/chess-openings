@@ -4,10 +4,11 @@
 // so Strict Mode replaying it is a no-op, and every line carries a deterministic
 // id, so the same moment can never be logged twice however it arrives.
 
-import { useCallback, useReducer } from "react";
+import { useCallback, useReducer, useRef } from "react";
 import type { OpeningSpec } from "@/content/spec";
 import { lastSession, sessionStore } from "@/lib/progress/sessions";
 import { mistakeStore, recurring } from "@/lib/progress/mistakes";
+import { activeSlips, slipStore } from "@/lib/progress/slips";
 import { eventToLines, type BeatContext } from "./beats";
 import type { TrainEvent } from "./events";
 import { admitAll, truncateLines } from "./filter";
@@ -63,10 +64,15 @@ export interface Companion {
   lines: CompanionLine[];
   /** Pass to `useTrainGame({ onEvent })`, and call directly for hint/pickup. */
   say: (e: TrainEvent) => void;
+  /** Identifies the game in progress, so a slip is counted once per game. */
+  gameId: () => string;
 }
 
 export function useCompanion(spec: OpeningSpec): Companion {
   const [state, dispatch] = useReducer(reduce, { lines: [] });
+  // A new id per game_start. Assigned inside `say`, which only ever runs from
+  // effects and event handlers, never during render.
+  const game = useRef("");
 
   // Preferences and memory are read from the stores at the moment a line is
   // built, not from a hook snapshot. During hydration a snapshot is still the
@@ -75,8 +81,10 @@ export function useCompanion(spec: OpeningSpec): Companion {
   // referentially stable, which the game hook's ref depends on.
   const say = useCallback(
     (e: TrainEvent) => {
+      if (e.t === "game_start" || !game.current) game.current = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
       const ctx: BeatContext = {
         spec,
+        slips: activeSlips(slipStore.getSnapshot(), spec.id, game.current),
         recurring: recurring(mistakeStore.getSnapshot(), spec.id),
         lastSession: lastSession(sessionStore.getSnapshot()),
       };
@@ -85,5 +93,6 @@ export function useCompanion(spec: OpeningSpec): Companion {
     [spec],
   );
 
-  return { lines: state.lines, say };
+  const gameId = useCallback(() => game.current, []);
+  return { lines: state.lines, say, gameId };
 }

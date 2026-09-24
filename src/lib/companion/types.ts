@@ -33,6 +33,8 @@ export type BeatKind =
   | "book_end"
   | "book_resumed"
   | "repeat_mistake"
+  | "recall"
+  | "remembered"
   | "swing_up"
   | "swing_down"
   | "setup_complete"

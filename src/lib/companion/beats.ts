@@ -7,7 +7,9 @@ import { describeRecurring, type MistakeEntry } from "@/lib/progress/mistakes";
 import type { Session } from "@/lib/progress/sessions";
 import { missingGoals } from "@/lib/setup/plan";
 import type { SetupProgress } from "@/lib/setup/progress";
+import { clearedBy, orMoves, RETIRE_AFTER, type Slip } from "@/lib/progress/slips";
 import { anticipate } from "./anticipate";
+import { recall } from "./recall";
 import type { TrainEvent } from "./events";
 import { type BeatKind, type CompanionLine, type Priority, type Tone } from "./types";
 
@@ -16,6 +18,8 @@ export interface BeatContext {
   /** What she remembers about you in this opening. */
   recurring: MistakeEntry[];
   lastSession: Session | null;
+  /** Slips still worth raising this game (see slips.ts `activeSlips`). */
+  slips?: Slip[];
 }
 
 interface Draft {
@@ -111,6 +115,31 @@ export function eventToLines(e: TrainEvent, ctx: BeatContext): CompanionLine[] {
           detail: m.detail,
         }),
       );
+
+      // A slip from an earlier game, put right this time.
+      const fixed = clearedBy(ctx.slips ?? [], ctx.spec.side, {
+        fenBefore: e.fenBefore,
+        fenAfter: e.fenAfter,
+        san: e.move.san,
+        from: e.move.from,
+        historyBefore: e.historyBefore,
+        pause: e.pause,
+        source: m.source,
+        why: "",
+      })[0];
+      if (fixed) {
+        const retiring = fixed.cleared + 1 >= RETIRE_AFTER;
+        out.push(
+          caissa(e.plyIndex, {
+            kind: "remembered",
+            text: fixed.kind === "order" ? `Remembered — ${e.move.san} first this time.` : `Remembered — not ${fixed.san} this time.`,
+            more: `${fixed.why}${retiring ? " That's twice running, so I'll stop reminding you." : ""}`,
+            priority: 1,
+            tone: "praise",
+            key: fixed.key.slice(0, 40),
+          }),
+        );
+      }
 
       // Something she's watched you do before.
       const repeat = m.tag ? ctx.recurring.find((r) => r.tag === m.tag) : undefined;
@@ -268,9 +297,26 @@ export function eventToLines(e: TrainEvent, ctx: BeatContext): CompanionLine[] {
       ];
 
     case "pickup": {
+      const out: CompanionLine[] = [];
+      // Memory first: it is about this exact moment in your own games.
+      const r = e.history ? recall(e.fen, e.square, e.history, ctx.spec, ctx.slips ?? []) : null;
+      if (r) {
+        out.push(
+          caissa(e.plyIndex, {
+            kind: "recall",
+            text: r.text,
+            more: r.more,
+            priority: 0,
+            tone: "warn",
+            key: r.slip.key.slice(0, 40),
+            deco: r.deco,
+          }),
+        );
+      }
       const a = anticipate(e.fen, e.square, ctx.spec.side);
-      if (!a) return [];
+      if (!a) return out;
       return [
+        ...out,
         caissa(e.plyIndex, {
           kind: a.kind === "pin" ? "anticipation_pin" : a.kind === "only_defender" ? "anticipation_only_defender" : "anticipation_all_covered",
           text: a.text,
@@ -316,7 +362,15 @@ function greeting(ctx: BeatContext): CompanionLine {
   let text = `${ctx.spec.name}. Let's go.`;
   let more: string | undefined;
 
-  if (worst && worst.count >= 2) {
+  // The most recent slip is the most useful thing to walk in with.
+  const slip = [...(ctx.slips ?? [])].sort((a, b) => b.lastSeen.localeCompare(a.lastSeen))[0];
+  if (slip) {
+    text =
+      slip.kind === "order" && slip.rule
+        ? `${ctx.spec.name} again. ${orMoves(slip.rule.before)} before ${orMoves(slip.rule.after)} this time.`
+        : `${ctx.spec.name} again. Last time ${slip.san} cost you.`;
+    more = slip.better ? `${slip.why} The move was ${slip.better}.` : slip.why;
+  } else if (worst && worst.count >= 2) {
     text = `${ctx.spec.name} again. Watch ${worst.square} this time.`;
     more = describeRecurring(worst);
   } else if (last && last.openingId === ctx.spec.id) {
